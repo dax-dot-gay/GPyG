@@ -30,7 +30,10 @@ class SubprocessResult:
                 if regex and re.search(pattern, line):
                     return line
 
-            if self.process.poll != None:
+                if not regex and not match_line and pattern in line.decode():
+                    return line
+
+            if self.process.poll() != None:
                 return None
 
     def send(self, data: str | bytes) -> None:

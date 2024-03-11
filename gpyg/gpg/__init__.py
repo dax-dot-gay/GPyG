@@ -4,6 +4,7 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from ..util import SubprocessResult, SubprocessSession
 import psutil
 import stat
+from .models import KeyGenerationResult
 
 
 class GPG:
@@ -65,7 +66,7 @@ class GPG:
         revoker: str = None,
         keyserver: str = None,
         handle: str = None,
-    ):
+    ) -> KeyGenerationResult:
         with NamedTemporaryFile(mode="w+") as params:
             params.write("%echo Generating GPG key...\n")
             if not passphrase:
@@ -115,7 +116,30 @@ class GPG:
             params.write("%commit\n")
             params.seek(0)
             process = self.session.run_command(
-                f"gpg --batch -v --generate-key {params.name}"
+                f"gpg --batch -v --fingerprint --generate-key {params.name}"
             )
-            process.wait()
-            print(process.output.decode())
+            try:
+                fingerprint = os.path.splitext(
+                    os.path.split(
+                        (
+                            process.wait_for("revocation certificate stored as")
+                            .decode()
+                            .strip()
+                            .split("'")[1]
+                        )
+                    )[1]
+                )[0]
+            except:
+                fingerprint = None
+
+            try:
+                process.wait(timeout=10)
+            except:
+                pass
+
+            return KeyGenerationResult(
+                fingerprint=fingerprint,
+                homedir=os.path.realpath(self.homedir) if self.homedir else None,
+                output=process.output.decode(),
+                code=process.returncode,
+            )

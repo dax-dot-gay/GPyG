@@ -7,7 +7,8 @@ name = "gpyg"
 version = "0.0.1"
 dependencies = [
     "psutil",
-    "typing-extensions"
+    "typing-extensions",
+    "pydantic"
 ]
 requires-python = ">=3.12"
 authors = [
