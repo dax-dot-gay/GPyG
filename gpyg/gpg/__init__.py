@@ -4,7 +4,7 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from ..util import SubprocessResult, SubprocessSession
 import psutil
 import stat
-from .models import KeyGenerationResult
+from .models import InfoLine, KeyGenerationResult, KeyInfo
 
 
 class GPG:
@@ -66,6 +66,7 @@ class GPG:
         revoker: str = None,
         keyserver: str = None,
         handle: str = None,
+        force: bool = False,
     ) -> KeyGenerationResult:
         with NamedTemporaryFile(mode="w+") as params:
             params.write("%echo Generating GPG key...\n")
@@ -116,7 +117,7 @@ class GPG:
             params.write("%commit\n")
             params.seek(0)
             process = self.session.run_command(
-                f"gpg --batch -v --fingerprint --generate-key {params.name}"
+                f"gpg --batch -v {'-y ' if force else ''}--fingerprint --generate-key {params.name}"
             )
             try:
                 fingerprint = os.path.splitext(
@@ -143,3 +144,46 @@ class GPG:
                 output=process.output.decode(),
                 code=process.returncode,
             )
+
+    def parse_infoline(self, line: str) -> InfoLine:
+        parts = line.split(":")
+        return parts[0], [i if len(i) > 0 else None for i in parts[1:]]
+
+    def list_keys(self, secret=False) -> list[KeyInfo]:
+        proc = self.session.run_command(
+            f"gpg --list{'-secret-' if secret else '-'}keys --with-colons --with-secret --with-fingerprint --with-fingerprint"
+        )
+        proc.wait()
+        lines = [
+            self.parse_infoline(line)
+            for line in proc.output.decode().split("\n")
+            if len(line.strip()) > 0 and not line.startswith("gpg:")
+        ]
+        segments = []
+        for line in lines:
+            if not line[0] in ["tru", "cfg"]:
+                if line[0] == "pub":
+                    segments.append([line])
+                else:
+                    segments[-1].append(line)
+
+        results = []
+        for seg in segments:
+            results.append(KeyInfo.from_lines(seg))
+
+        return results
+
+    def get_key(self, fingerprint: str, secret=False) -> KeyInfo | None:
+        proc = self.session.run_command(
+            f"gpg --list{'-secret-' if secret else '-'}keys --with-colons --with-secret --with-fingerprint --with-fingerprint {fingerprint}"
+        )
+        proc.wait()
+        if "error reading key\n" in proc.output.decode():
+            return None
+
+        lines = [
+            self.parse_infoline(line)
+            for line in proc.output.decode().split("\n")
+            if len(line.strip()) > 0 and not line.startswith("gpg:")
+        ]
+        return KeyInfo.from_lines(lines)
