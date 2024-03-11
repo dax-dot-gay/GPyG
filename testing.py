@@ -12,5 +12,4 @@ generated = gpg.generate(
     name_comment="Test Comment",
     name_email="dharr@lle.rochester.edu",
 )
-print(gpg.get_key(generated.fingerprint))
-print(gpg.get_key(generated.fingerprint, secret=True))
+print(generated.info, generated.json)

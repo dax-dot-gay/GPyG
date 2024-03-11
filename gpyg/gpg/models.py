@@ -276,3 +276,7 @@ class KeyInfo(BaseModel):
             if line[0] == "grp":
                 result.keygrip = line[1][8]
         return result
+
+
+class GPGError(Exception):
+    pass
