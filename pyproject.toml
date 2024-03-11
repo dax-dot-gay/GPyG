@@ -5,7 +5,10 @@ build-backend = "hatchling.build"
 [project]
 name = "gpyg"
 version = "0.0.1"
-dependencies = []
+dependencies = [
+    "psutil",
+    "typing-extensions"
+]
 requires-python = ">=3.12"
 authors = [
   {name = "Dax Harris"}

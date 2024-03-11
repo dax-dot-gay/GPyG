@@ -13,6 +13,7 @@ class SubprocessResult:
         try:
             self._output += self.process.communicate(timeout=timeout)[0]
         except subprocess.TimeoutExpired:
+            print("EXP")
             self.process.kill()
             self._output += self.process.communicate()[0]
 
@@ -45,9 +46,14 @@ class SubprocessResult:
         else:
             raise RuntimeError("Process is not running.")
 
+    def kill(self) -> None:
+        if self.process.poll() == None:
+            self.process.kill()
+
     @property
     def output(self) -> bytes:
-        self._output += self.process.stdout.read()
+        if self.process.poll() == None:
+            self._output += self.process.stdout.read()
         return self._output
 
     @property
@@ -69,12 +75,15 @@ class SubprocessSession:
         }
 
     def parse_args(self, args: list[str]) -> list[str]:
+        if self.default_options["shell"]:
+            return " ".join(args)
         return shlex.split(" ".join(args))
 
     def run_command(self, *args, **kwargs):
+        _args = self.parse_args(args)
         return SubprocessResult(
             subprocess.Popen(
-                self.parse_args(args),
+                _args,
                 stderr=subprocess.STDOUT,
                 stdout=subprocess.PIPE,
                 stdin=subprocess.PIPE,
