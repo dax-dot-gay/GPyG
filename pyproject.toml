@@ -1,0 +1,25 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gpyg"
+version = "0.0.1"
+dependencies = []
+requires-python = ">=3.12"
+authors = [
+  {name = "Dax Harris"}
+]
+description = "A modern pythonic wrapper around GPG"
+readme = "README.md"
+license = {file = "LICENSE"}
+keywords = ["gpg", "pgp", "cryptography"]
+classifiers = [
+  "Programming Language :: Python"
+]
+
+[project.urls]
+Repository = "https://github.com/iTecAI/GPyG"
+
+[tool.hatch.build.targets.wheel]
+packages = ["gpyg"]
