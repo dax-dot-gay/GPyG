@@ -12,7 +12,9 @@ generated = gpg.generate(
     name_comment="Test Comment",
     name_email="dharr@lle.rochester.edu",
 )
-print(generated.dict)
-print(gpg.list_keys())
-generated.delete()
-print(gpg.list_keys())
+print(generated.export(format="pem", password="test-psk").decode())
+print(
+    gpg.get_key(generated.info.fingerprint, secret=True)
+    .export(format="pem", password="test-psk")
+    .decode()
+)

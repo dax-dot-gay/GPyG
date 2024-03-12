@@ -85,15 +85,35 @@ class KeyManager:
                     tf.write(f"Expire-Date: {key.expiration_date.isoformat()}\n")
                 tf.write("%commit\n")
                 tf.seek(0)
-                
-                proc = self.session.run_command(f"gpgsm --yes --homedir {self.session.default_options["env"]["GNUPGHOME"]}{f' --passphrase-fd 0' if password else ''} --pinentry-mode loopback --batch --armor --gen-key {tf.name}")
-                if password:
-                    proc.send(password)
-                proc.wait()
-                if b"certificate created" in proc.output:
-                    return proc.output.split(b"certificate created\n")[1].strip()
-                else:
-                    raise GPGError(f"Failed to convert (code {proc.returncode}):\n\n{proc.output.decode()}")
+                with NamedTemporaryFile(mode="w+b") as certf:
+                    proc = self.session.run_command(f"gpgsm --yes --homedir {self.session.default_options["env"]["GNUPGHOME"]}{f' --passphrase-fd 0' if password else ''} --pinentry-mode loopback --batch --armor -o {certf.name} --gen-key {tf.name}")
+                    if password:
+                        proc.send(password)
+                    proc.wait()
+                    if b"certificate created" in proc.output:
+                        certf.seek(0)
+                        proc = self.session.run_command(f"gpgsm --with-colons --show-certs {certf.name}")
+                        proc.wait()
+                        try:
+                            keyid = [i.split(":")[-1].strip() for i in proc.output.decode().split("\n") if i.strip().startswith("ID:")][0]
+                        except:
+                            raise GPGError(f"Failed to parse certificate info:\n{proc.output.decode()}")
+                        
+                        proc = self.session.run_command(f"gpgsm --import {certf.name}")
+                        proc.wait()
+                        if self.type == "secret":
+                            proc = self.session.run_command(f"gpgsm --armor {f' --passphrase-fd 0' if password else ''} --pinentry-mode loopback --batch --export-secret-key-p8 {keyid}")
+                            if password:
+                                proc.send(password)
+                            proc.wait()
+                            return proc.output
+                        else:
+                            proc = self.session.run_command(f"gpgsm --armor --batch --export {keyid}")
+                            proc.wait()
+                            return proc.output
+                    else:
+                        raise GPGError(f"Failed to convert (code {proc.returncode}):\n\n{proc.output.decode()}")
+                    
                 
     def delete(self) -> None:
         self.session.run_command(f"gpg --batch --yes --delete-secret-and-public-key {self.info.fingerprint}").wait()
