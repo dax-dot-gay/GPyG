@@ -140,7 +140,7 @@ class GPG:
                 pass
 
             if fingerprint:
-                return self.get_key(fingerprint)
+                return self.get_key(fingerprint, password=passphrase)
             else:
                 raise GPGError(
                     f"Failed to generate (code {process.returncode}):\n\n"
@@ -175,7 +175,9 @@ class GPG:
 
         return results
 
-    def get_key(self, fingerprint: str, secret=False) -> KeyManager | None:
+    def get_key(
+        self, fingerprint: str, secret=False, password: str | None = None
+    ) -> KeyManager | None:
         proc = self.session.run_command(
             f"gpg --list{'-secret-' if secret else '-'}keys --with-colons --with-secret --with-fingerprint --with-fingerprint {fingerprint}"
         )
@@ -188,4 +190,4 @@ class GPG:
             for line in proc.output.decode().split("\n")
             if len(line.strip()) > 0 and not line.startswith("gpg:")
         ]
-        return KeyManager(KeyInfo.from_lines(lines), self.session)
+        return KeyManager(KeyInfo.from_lines(lines), self.session, password=password)

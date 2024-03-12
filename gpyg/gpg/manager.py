@@ -8,9 +8,10 @@ from .edit_key import KeyEditor
 
 
 class KeyManager:
-    def __init__(self, info: KeyInfo, session: SubprocessSession):
+    def __init__(self, info: KeyInfo, session: SubprocessSession, password: str | None = None):
         self.info = info
         self.session = session
+        self.password = password
 
     @property
     def dict(self) -> dict:
@@ -122,7 +123,7 @@ class KeyManager:
     
     @contextmanager
     def edit(self) -> Generator[KeyEditor, Any, Any]:
-        editor = KeyEditor(self.info, self.session)
+        editor = KeyEditor(self.info, self.session, self.password)
         try:
             editor.activate()
             yield editor

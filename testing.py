@@ -14,4 +14,12 @@ generated = gpg.generate(
 )
 print(generated.info.fingerprint)
 with generated.edit() as editor:
-    editor.list()
+    keys, users = editor.list()
+    print(users)
+    editor.add_user_id("Bongus Wongus", email="bongo@gmail.com", comment="Test comment")
+    keys, users = editor.list()
+    print(users)
+    editor.revoke_user_id(2, description="i hate u")
+    keys, users = editor.list()
+    print(users)
+    editor.quit()
