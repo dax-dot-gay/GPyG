@@ -94,3 +94,6 @@ class KeyManager:
                     return proc.output.split(b"certificate created\n")[1].strip()
                 else:
                     raise GPGError(f"Failed to convert (code {proc.returncode}):\n\n{proc.output.decode()}")
+                
+    def delete(self) -> None:
+        self.session.run_command(f"gpg --batch --yes --delete-secret-and-public-key {self.info.fingerprint}").wait()
