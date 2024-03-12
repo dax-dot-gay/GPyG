@@ -1,8 +1,10 @@
+from contextlib import contextmanager
 import re
 from tempfile import NamedTemporaryFile
-from typing import Literal
+from typing import Any, ContextManager, Generator, Literal
 from .models import GPGError, KeyInfo, PublicKeyAlgorithms as PK
 from ..util import SubprocessResult, SubprocessSession
+from .edit_key import KeyEditor
 
 
 class KeyManager:
@@ -117,3 +119,12 @@ class KeyManager:
                 
     def delete(self) -> None:
         self.session.run_command(f"gpg --batch --yes --delete-secret-and-public-key {self.info.fingerprint}").wait()
+    
+    @contextmanager
+    def edit(self) -> Generator[KeyEditor, Any, Any]:
+        editor = KeyEditor(self.info, self.session)
+        try:
+            editor.activate()
+            yield editor
+        finally:
+            editor.deactivate()

@@ -1,7 +1,7 @@
 import re
 import subprocess
 import shlex
-from typing import Literal
+from typing import Any, Literal
 
 
 class SubprocessResult:
@@ -13,15 +13,14 @@ class SubprocessResult:
         try:
             self._output += self.process.communicate(timeout=timeout)[0]
         except subprocess.TimeoutExpired:
-            print("EXP")
             self.process.kill()
             self._output += self.process.communicate()[0]
 
     def wait_for(
-        self, pattern: re.Pattern | str, regex=False, match_line=False
+        self, pattern: re.Pattern | str, regex=False, match_line=False, fd: Any = None
     ) -> bytes | None:
         while True:
-            line = self.process.stdout.readline()
+            line = self.process.stdout.readline() if not fd else fd.readline()
             if line and len(line.strip()) > 0:
                 self._output += line
                 if match_line and type(pattern) == str and pattern == line:
@@ -56,7 +55,13 @@ class SubprocessResult:
     @property
     def output(self) -> bytes:
         if self.process.poll() == None:
-            self._output += self.process.stdout.read()
+            while True:
+                line = self.process.stdout.readline()
+                if not line:
+                    break
+                self._output += line
+                self.process.stdout.flush()
+
         return self._output
 
     @property
@@ -87,14 +92,21 @@ class SubprocessSession:
         return SubprocessResult(
             subprocess.Popen(
                 _args,
-                stderr=subprocess.STDOUT,
-                stdout=subprocess.PIPE,
-                stdin=subprocess.PIPE,
                 **self.default_options,
                 **{
                     k: v
                     for k, v in kwargs.items()
                     if self.default_options.get(k) == None
                 },
+                **{
+                    pipe: (
+                        subprocess.PIPE
+                        if pipe in ["stdout", "stdin"]
+                        else subprocess.STDOUT
+                    )
+                    for pipe in ["stdout", "stdin", "stderr"]
+                    if not pipe in kwargs.keys()
+                },
+                bufsize=0,
             )
         )
