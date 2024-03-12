@@ -12,6 +12,6 @@ generated = gpg.generate(
     name_comment="Test Comment",
     name_email="dharr@lle.rochester.edu",
 )
+print(generated.info.fingerprint)
 with generated.edit() as editor:
-    print(editor.execute("help"))
-    print(editor.execute("list"))
+    editor.list()

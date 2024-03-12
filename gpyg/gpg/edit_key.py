@@ -1,7 +1,12 @@
-from tempfile import TemporaryFile
-import time
+import re
+from pydantic import BaseModel
 from .models import KeyInfo
 from ..util import SubprocessSession, SubprocessResult
+
+
+class KeyListItem(BaseModel):
+    code: str
+    algorithm: str
 
 
 class KeyEditor:
@@ -39,3 +44,35 @@ class KeyEditor:
             .replace("[GNUPG:] GOT_IT", "")
             .strip()
         )
+
+    def help(self) -> dict[str, str]:
+        result = self.execute("help")
+        parts = [
+            line.split(maxsplit=1)
+            for line in result.split("\n")
+            if not line[0] in [" ", "*"]
+        ]
+        return {k: v for k, v in parts}
+
+    def quit(self, save=True) -> None:
+        if save:
+            self.execute("save")
+        else:
+            self.execute("quit")
+
+        self.deactivate()
+
+    def list(self):
+        result = self.execute("list")
+        lines = result.split("\n")
+
+        segments: list[list[str]] = []
+        for line in lines:
+            if re.match(r"^\[.*\].*$", line):
+                segments.append(["UID", line])
+            elif re.match(r"^\s.*$", line):
+                segments[-1][1] += "\n" + line
+            else:
+                segments.append(["KEY", line])
+
+        print(segments)
