@@ -1,4 +1,5 @@
 from gpyg import GPG
+from gpyg.gpg.edit_key import AddKeyType
 import shutil
 
 shutil.rmtree("./tests/output")
@@ -15,7 +16,4 @@ generated = gpg.generate(
 print(generated.info.fingerprint)
 with generated.edit() as editor:
     keys, users = editor.list()
-    print(users)
-    print(editor.get_preferences(1))
-    editor.set_preferences(1, cipher=["AES"])
-    print(editor.get_preferences(1))
+    print(keys)

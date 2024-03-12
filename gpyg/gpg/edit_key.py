@@ -36,9 +36,25 @@ class PrefsCompression(StrEnum):
     BZIP2 = "Z3"
 
 
+class AddKeyType(StrEnum):
+    DSA = "3"
+    RSA_SIGN = "4"
+    ELGAMAL = "5"
+    RSA_ENCRYPT = "6"
+    ECC_SIGN = "10"
+    ECC_ENCRYPT = "12"
+
+
+class AddKeyCurveType(StrEnum):
+    CURVE_25519 = "1"
+    NIST_P384 = "4"
+    BRAINPOOL_P256 = "6"
+
+
 class KeyListItem(BaseModel):
     type: str
     algorithm: str
+    id_hash: str
     id: str
     created: datetime.date | None
     expires: datetime.date | None
@@ -69,7 +85,8 @@ class KeyListItem(BaseModel):
         return KeyListItem(
             type=keytype,
             algorithm=algo,
-            id=key_id,
+            id_hash=key_id,
+            id=algo_and_id,
             created=created,
             expires=expires,
             usage=options.get("usage"),
@@ -229,3 +246,25 @@ class KeyEditor:
         }
         self.select_user_id(None)
         return result
+
+    def add_key(
+        self,
+        _type: AddKeyType,
+        curve: AddKeyCurveType = AddKeyCurveType.CURVE_25519,
+        key_length: int = 3072,
+        expires: str | int = 0,
+    ):
+        if _type in [AddKeyType.ECC_SIGN, AddKeyType.ECC_ENCRYPT]:
+            result = self.execute(
+                "addkey",
+                _type.value,
+                curve.value,
+                expires if type(expires) == str else str(expires),
+            )
+        else:
+            result = self.execute(
+                "addkey",
+                _type.value,
+                str(key_length),
+                expires if type(expires) == str else str(expires),
+            )
