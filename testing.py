@@ -12,4 +12,4 @@ generated = gpg.generate(
     name_comment="Test Comment",
     name_email="dharr@lle.rochester.edu",
 )
-print(generated.info, generated.json)
+print(generated.export(format="pem", password="test-psk").decode())

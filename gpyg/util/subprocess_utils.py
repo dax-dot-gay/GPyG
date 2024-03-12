@@ -43,7 +43,7 @@ class SubprocessResult:
             _data = data
 
         if self.process.poll() == None:
-            self.process.stdin.write(_data + "\n")
+            self.process.stdin.write(_data + b"\n")
             self.process.stdin.flush()
 
         else:
