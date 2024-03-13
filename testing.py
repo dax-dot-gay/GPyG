@@ -2,7 +2,10 @@ from gpyg import GPG
 from gpyg.gpg.edit_key import AddKeyType
 import shutil
 
-shutil.rmtree("./tests/output")
+try:
+    shutil.rmtree("./tests/output")
+except:
+    pass
 
 gpg = GPG(homedir="./tests/output")
 generated = gpg.generate(
