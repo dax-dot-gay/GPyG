@@ -1,0 +1,5 @@
+GPGME_VERSION = "1.23.2"
+GPG_SIGNING_KEY = "https://gnupg.org/signature_key.asc"
+TARBALL_BASE = "https://www.gnupg.org/ftp/gcrypt/gpgme/gpgme-{version}.tar.bz2"
+TARBALL_SIG = "https://www.gnupg.org/ftp/gcrypt/gpgme/gpgme-{version}.tar.bz2.sig"
+VERIFY_CMD = "gpg --verify {signature} {tarball}"
