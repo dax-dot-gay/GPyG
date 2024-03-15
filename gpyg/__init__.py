@@ -4,6 +4,7 @@ import os
 try:
     from .lib import *
 except:
+    raise
     from .bootstrap import bootstrap
 
     bootstrap(

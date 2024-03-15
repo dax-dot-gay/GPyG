@@ -13,7 +13,7 @@ from .build import build
 
 def codegen(library: str):
     ENUM_TEMPLATE = """
-class {namespace}{etype}(IntEnum):
+class {namespace}{etype}(IntFlag):
 {members}
     """
 
@@ -72,6 +72,7 @@ def bootstrap(prefix: str, library: str):
             "_gpgme.py",
             "gpgme.py",
             f"_gpgme.{sys.implementation.cache_tag}-{sys.implementation._multiarch}.so",
+            "results.py",
         ]:
             shutil.copy(
                 os.path.join(
