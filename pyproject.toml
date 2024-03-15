@@ -28,3 +28,8 @@ Repository = "https://github.com/iTecAI/GPyG"
 
 [tool.hatch.build.targets.wheel]
 packages = ["gpyg"]
+
+[project.optional-dependencies]
+dev = [
+  "pytest"
+]
