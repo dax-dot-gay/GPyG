@@ -3,8 +3,9 @@ import pytest, gpyg
 
 
 @pytest.fixture
-def context() -> gpyg.GPGMEContext:
-    return gpyg.GPGMEContext()
+def context():
+    with gpyg.GPG() as gpg:
+        yield gpg
 
 
 @pytest.fixture

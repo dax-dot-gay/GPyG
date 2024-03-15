@@ -28,6 +28,10 @@ CONTEXT_FLAGS = Literal[
 
 class GPGMEContext:
 
+    def free(self):
+        self.context_pointer.delete()
+        self.context = None
+
     def __init__(
         self,
         version: str | None = None,
