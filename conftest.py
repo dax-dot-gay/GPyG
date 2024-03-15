@@ -9,5 +9,11 @@ def context():
 
 
 @pytest.fixture
-def homedir(tmp_path_factory: pytest.TempPathFactory) -> Path:
+def homed_context(homedir: str):
+    with gpyg.GPG(homedir=homedir) as gpg:
+        yield gpg
+
+
+@pytest.fixture
+def homedir(tmp_path_factory: pytest.TempPathFactory) -> str:
     return str(tmp_path_factory.mktemp("homedir").resolve())

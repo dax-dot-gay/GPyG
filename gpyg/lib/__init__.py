@@ -1,6 +1,9 @@
 from .context import GPGMEContext, CONTEXT_FLAGS, GpgmePinentry, GpgmeKeylist
 from .util import CPointer, GPGError, GPGInternalError, raise_error
 from .models import *
+from .operators import *
+
+OPERATORS = {"key": KeyOperator}
 
 
 class GPG:
@@ -12,6 +15,7 @@ class GPG:
         if self.context:
             self.context.free()
             self.context = None
+            self.operators = {}
 
     def __enter__(self, *args, **kwargs):
         self.activate()
@@ -23,6 +27,12 @@ class GPG:
     def check(self):
         if self.context == None:
             raise GPGError("GPG instance has not been activated.")
+
+    def get_operator(self, name: str):
+        if not name in self.operators.keys():
+            self.operators[name] = OPERATORS[name](self.context)
+
+        return self.operators[name]
 
     def __init__(
         self,
@@ -48,6 +58,8 @@ class GPG:
             self.context = GPGMEContext(**self.options)
         else:
             self.context: GPGMEContext = None
+
+        self.operators = {}
 
     @property
     def homedir(self) -> str | None:
@@ -140,3 +152,8 @@ class GPG:
     def set_flag(self, flag: CONTEXT_FLAGS, value: str):
         self.check()
         self.context.set_flag(flag, value)
+
+    @property
+    def keys(self) -> KeyOperator:
+        self.check()
+        return self.get_operator("key")

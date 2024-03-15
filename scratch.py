@@ -1,6 +1,16 @@
 # Scratchpad for quick tests
 
-import gpyg
-from gpyg.gpgme import GpgmeKeylist
+import os
+from gpyg import GPG, UserID
 
-print(repr(GpgmeKeylist.MODE_EPHEMERAL | GpgmeKeylist.MODE_LOCAL))
+os.makedirs("./gpg", exist_ok=True)
+with GPG(homedir="./gpg") as gpg:
+    print(
+        gpg.keys.create_key(
+            UserID(name="Dax Harris", email="dharr@lle.rochester.edu"),
+            algorithm="rsa3072",
+            expiration=None,
+            force=True,
+            passphrase="test-psk",
+        )
+    )

@@ -11,7 +11,7 @@ class GPGInternalError(GPGError):
         super().__init__(*args)
 
     def __str__(self) -> str:
-        return f"Encountered an internal GPG error: {repr(self.error)}. \n\n{super().__str__()}"
+        return f"Encountered an internal GPG error: {repr(self.error)}. {super().__str__()}"
 
 
 def raise_error(result: GpgErr | int) -> None:

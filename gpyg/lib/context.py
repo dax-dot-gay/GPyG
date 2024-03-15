@@ -1,5 +1,6 @@
 from contextlib import contextmanager
 from typing import Any, Callable, Literal
+import weakref
 from ..gpgme import *
 from .util import *
 from .models import *
@@ -29,6 +30,7 @@ CONTEXT_FLAGS = Literal[
 class GPGMEContext:
 
     def free(self):
+        gpgme_release(self.context)
         self.context_pointer.delete()
         self.context = None
 
@@ -46,6 +48,7 @@ class GPGMEContext:
         self.context_pointer = CPointer[Any].new("gpgme_ctx_t")
         raise_error(gpgme_new(self.context_pointer.pointer))
         self.context = self.context_pointer.value
+        self.wrapped = self.context
 
         self.homedir = homedir
         self.armor = armor
@@ -160,10 +163,15 @@ class GPGMEContext:
     def set_callback(
         self, name: Literal["passphrase", "progress", "status"], function: Callable
     ):
-        getattr(gpgme, f"gpgme_set_{name}_cb")(self.context, function)
+        if function is None:
+            hookdata = None
+        else:
+            hookdata = (weakref.ref(self), function)
+
+        getattr(gpgme, f"gpg_set_{name}_cb")(self, hookdata)
 
     def clear_callback(self, name: Literal["passphrase", "progress", "status"]):
-        getattr(gpgme, f"gpgme_set_{name}_cb")(self.context, None)
+        getattr(gpgme, f"gpg_set_{name}_cb")(self, None)
 
     @contextmanager
     def callback(
