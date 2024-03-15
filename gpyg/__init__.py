@@ -1,8 +1,13 @@
+import json
 import os
 
 try:
-    raise Exception
+    from .gpgme import *
 except:
     from .bootstrap import bootstrap
 
-    bootstrap(os.path.join(os.path.dirname(__file__), "gpgme"))
+    bootstrap(
+        os.path.join(os.path.dirname(__file__), "gpgme.prefix"),
+        os.path.join(os.path.dirname(__file__), "gpgme"),
+    )
+    from .gpgme import *
