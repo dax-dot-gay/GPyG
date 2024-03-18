@@ -1,4 +1,4 @@
-from gpyg.gpgme import GpgErr
+from gpyg.gpgme import GpgErr, gpgme_err_code
 
 
 class GPGError(Exception):
@@ -15,6 +15,13 @@ class GPGInternalError(GPGError):
 
 
 def raise_error(result: GpgErr | int) -> None:
+    if not result:
+        return None
+    result = gpgme_err_code(result)
     if result == GpgErr.NO_ERROR or result == None:
         return
     raise GPGInternalError(result)
+
+
+def translate_error(result: int) -> GpgErr:
+    return gpgme_err_code(result)
