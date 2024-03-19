@@ -70,4 +70,5 @@ class KeyOperator(BaseOperator):
         proc.wait()
 
         lines = [i for i in proc.output.splitlines() if not i.startswith("gpg: ")]
-        return [parse_infoline(line) for line in lines]
+        parsed = [parse_infoline(line) for line in lines]
+        return parsed

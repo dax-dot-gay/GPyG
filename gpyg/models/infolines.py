@@ -2,6 +2,7 @@ import datetime
 from enum import IntEnum, StrEnum
 from typing import Any, Literal
 from pydantic import BaseModel
+from pydantic_core import to_jsonable_python
 
 
 class InfoRecord(StrEnum):
@@ -62,6 +63,16 @@ class KeyCapability(StrEnum):
     DISABLED = "d"
 
 
+class StaleTrustReason(StrEnum):
+    OLD = "o"
+    DIFFERENT_MODEL = "t"
+
+
+class TrustModel(IntEnum):
+    CLASSIC = 0
+    PGP = 1
+
+
 class InfoLine(BaseModel):
     record_type: InfoRecord
     field_array: list[str | None]
@@ -103,6 +114,9 @@ class InfoLine(BaseModel):
 
     def as_dict(self) -> dict[str, Any]:
         return self.model_dump()
+
+    def as_json(self):
+        return to_jsonable_python(self.as_dict())
 
 
 # pub, sub
@@ -193,8 +207,18 @@ class FingerprintInfo(InfoLine):
         return dict(record_type=self.record_type, fingerprint=self.fingerprint)
 
 
+# grp
+class KeygripInfo(InfoLine):
+    @property
+    def keygrip(self) -> str:
+        return self.field(10)
+
+    def as_dict(self) -> dict[str, Any]:
+        return dict(record_type=self.record_type, keygrip=self.keygrip)
+
+
 # sec, ssb
-class SecretKeyInfo(InfoLine):
+class SecretKeyInfo(KeyInfo):
     @property
     def serial_number(self) -> str | None:
         return self.field(15)
@@ -261,6 +285,113 @@ class UserIDInfo(InfoLine):
         )
 
 
+# sig
+class SignatureInfo(InfoLine):
+    @property
+    def validity(self) -> SignatureValidity | None:
+        value = self.field(2)
+        if value and len(value) > 0:
+            return SignatureValidity(value[0])
+        else:
+            return None
+
+    @property
+    def algorithm(self) -> int:
+        return int(self.field(4))
+
+    @property
+    def key_id(self) -> str:
+        return self.field(5)
+
+    @property
+    def creation_date(self) -> datetime.datetime | None:
+        value = self.field(6)
+        if value:
+            if "T" in value:
+                return datetime.datetime.fromisoformat(value)
+            else:
+                return datetime.datetime.fromtimestamp(float(value))
+        return None
+
+    @property
+    def expiration_date(self) -> datetime.datetime | None:
+        value = self.field(7)
+        if value:
+            if "T" in value:
+                return datetime.datetime.fromisoformat(value)
+            else:
+                return datetime.datetime.fromtimestamp(float(value))
+        return None
+
+    @property
+    def uid(self) -> str:
+        return self.field(10)
+
+    @property
+    def signature_class(self) -> str:
+        return self.field(11)
+
+    @property
+    def signer_fingerprint(self) -> str:
+        return self.field(13)
+
+    def as_dict(self) -> dict[str, Any]:
+        return dict(
+            record_type=self.record_type,
+            validity=self.validity,
+            algorithm=self.algorithm,
+            key_id=self.key_id,
+            creation_date=self.creation_date,
+            expiration_date=self.expiration_date,
+            uid=self.uid,
+            signature_class=self.signature_class,
+            signer_fingerprint=self.signer_fingerprint,
+        )
+
+
+# tru
+class TrustInfo(InfoLine):
+    @property
+    def staleness(self) -> None | StaleTrustReason:
+        return StaleTrustReason(self.field(2)) if self.field(2) else None
+
+    @property
+    def trust_model(self) -> TrustModel:
+        return TrustModel(int(self.field(3)))
+
+    @property
+    def creation_date(self) -> datetime.datetime:
+        return datetime.datetime.fromtimestamp(float(self.field(4)))
+
+    @property
+    def expiration_date(self) -> datetime.datetime:
+        return datetime.datetime.fromtimestamp(float(self.field(5)))
+
+    @property
+    def marginals_needed(self) -> int:
+        return int(self.field(6))
+
+    @property
+    def completes_needed(self) -> int:
+        return int(self.field(7))
+
+    @property
+    def max_cert_depth(self) -> int:
+        return int(self.field(8))
+
+    def as_dict(self) -> dict[str, Any]:
+        return dict(
+            record_type=self.record_type,
+            staleness=self.staleness,
+            trust_model=self.trust_model,
+            creation_date=self.creation_date,
+            expiration_date=self.expiration_date,
+            marginals_needed=self.marginals_needed,
+            completes_needed=self.completes_needed,
+            max_cert_depth=self.max_cert_depth,
+        )
+
+
 def parse_infoline(line: str) -> InfoLine:
     initial_parse = InfoLine.from_line(line)
     match initial_parse.record_type:
@@ -284,6 +415,15 @@ def parse_infoline(line: str) -> InfoLine:
 
         case InfoRecord.USER_ID:
             return UserIDInfo.from_line(line)
+
+        case InfoRecord.SIGNATURE:
+            return SignatureInfo.from_line(line)
+
+        case InfoRecord.TRUST_INFO:
+            return TrustInfo.from_line(line)
+
+        case InfoRecord.KEYGRIP:
+            return KeygripInfo.from_line(line)
 
         case _:
             return initial_parse
