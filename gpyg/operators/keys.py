@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta
 from typing import Literal
 from .common import BaseOperator
+from ..util import ExecutionError
+from ..models import InfoLine, parse_infoline
 
 
 class KeyOperator(BaseOperator):
@@ -16,7 +18,7 @@ class KeyOperator(BaseOperator):
         force: bool = False,
     ):
         uid = "{name}{email}{comment}".format(name=name, email=f" <{email}> " if email else " ", comment=f"({comment})" if comment else "").strip()
-        
+
         if isinstance(expiration, datetime):
             expire_str = expiration.isoformat()
         elif isinstance(expiration, timedelta):
@@ -25,7 +27,7 @@ class KeyOperator(BaseOperator):
             expire_str = "seconds=" + str(expiration)
         else:
             expire_str = "none"
-        
+
         command = "gpg {force} --batch --pinentry-mode loopback --passphrase {passphrase} --quick-gen-key '{uid}' {algo} {usage} {expire}".format(
             force="--yes" if force else "",
             passphrase="'" + passphrase + "'" if passphrase else "''",
@@ -36,4 +38,36 @@ class KeyOperator(BaseOperator):
         )
         proc = self.session.spawn(command)
         proc.wait()
-        print(proc.output)
+        if "certificate stored" in proc.output:
+            pass
+        else:
+            raise ExecutionError(proc.output)
+
+    def list_keys(
+        self,
+        pattern: str = None,
+        key_type: Literal["public", "secret"] = "public",
+        include_fingerprint: bool = True,
+        include_subkey_fingerprint: bool = True,
+        include_keygrip: bool = True,
+        include_signatures: bool = True,
+    ) -> list[InfoLine]:
+        args = [
+            i
+            for i in [
+                "gpg",
+                "--with-colons",
+                "--with-fingerprint" if include_fingerprint else None,
+                "--with-subkey-fingerprint" if include_subkey_fingerprint else None,
+                "--with-keygrip" if include_keygrip else None,
+                "--with-sig-check" if include_signatures else None,
+                f"--list-{key_type}-keys",
+                pattern,
+            ]
+            if i != None
+        ]
+        proc = self.session.spawn(args)
+        proc.wait()
+
+        lines = [i for i in proc.output.splitlines() if not i.startswith("gpg: ")]
+        return [parse_infoline(line) for line in lines]
