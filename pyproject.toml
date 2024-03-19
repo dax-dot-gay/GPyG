@@ -6,9 +6,9 @@ build-backend = "hatchling.build"
 name = "gpyg"
 version = "0.0.1"
 dependencies = [
-    "psutil",
     "typing-extensions",
-    "pydantic"
+    "pydantic",
+    "pytest"
 ]
 requires-python = ">=3.12"
 authors = [
