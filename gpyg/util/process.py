@@ -8,23 +8,33 @@ import time
 from typing import Any, Literal
 
 class Process:
-    def __init__(self, popen: subprocess.Popen, command: str | list[str], options: dict[str, Any]):
+    def __init__(self, popen: subprocess.Popen, command: str | list[str], options: dict[str, Any], launch_thread: bool = False):
         self.popen = popen
         self.options = options
         self.command: str = shlex.join(command) if type(command) == list else command
         self.output = ""
         self.code: int | None = None
-        self.listener = threading.Thread(target=self.listen, name=f"listener-{self.command}", daemon=True)
-        self.listener.start()
+        if launch_thread:
+            self.listener = threading.Thread(target=self.listen, name=f"listener-{self.command}")
+            self.listener.start()
+        else:
+            self.listener = None
         
     def listen(self):
         while True:
-            if self.poll() != None:
+            try:
+                data = self.popen.stdout.read(1).decode()
+            except:
+                data = None
+            if self.poll() != None and data == None:
                 return
             
-            data = self.popen.stdout.read(1).decode()
+            
             self.output += data
-            self.popen.stdout.flush()
+            try:
+                self.popen.stdout.flush()
+            except:
+                pass
         
     @property
     def pid(self) -> int:
@@ -48,6 +58,8 @@ class Process:
             self.popen.stdin.flush()
             
     def lines(self, seek: int = 0, strip: bool = True) -> Generator[str, Any, None]:
+        if not self.listener:
+            raise RuntimeError("Not in listener mode.")
         if seek < 0:
             pointer = len(self.output) + seek
         else:
@@ -98,7 +110,9 @@ class Process:
     def wait(self, timeout: float | None = None, kill_on_timeout: bool = True) -> int | None:
         if self.code == None:
             try:
-                self.popen.communicate(timeout=timeout)
+                output = self.popen.communicate(timeout=timeout)[0].decode()
+                if self.listener == None:
+                    self.output = output
             except subprocess.TimeoutExpired:
                 if kill_on_timeout:
                     self.kill()
@@ -129,11 +143,11 @@ class ProcessSession:
         
         return result
     
-    def __enter__(self):
+    def activate(self):
         self.processes = {}
         return self
     
-    def __exit__(self, *args, **kwargs):
+    def deactivate(self):
         match self.cleanup:
             case "kill":
                 for pid, process in list(self.processes.items()):
@@ -147,6 +161,12 @@ class ProcessSession:
                         
             case _:
                 pass
+    
+    def __enter__(self):
+        return self.activate()
+    
+    def __exit__(self, *args, **kwargs):
+        self.deactivate()
             
     def parse_cmd(self, cmd: str | list[str], shell: bool) -> str | list[str]:
         if type(cmd) == list:
@@ -159,12 +179,12 @@ class ProcessSession:
         
         return result
             
-    def spawn(self, command: str | list[str], shell: bool | None = None, environment: dict[str, str] | None = None, working_directory: str | None = None) -> Process:
+    def spawn(self, command: str | list[str], shell: bool | None = None, environment: dict[str, str] | None = None, working_directory: str | None = None, listen: bool = False) -> Process:
         options = self.make_kwargs(shell=shell, env=environment, cwd=working_directory)
         parsed_command = self.parse_cmd(command, shell=bool(options.get("shell", False)))
         
         popen = subprocess.Popen(parsed_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, **options)
-        self.processes[popen.pid] = Process(popen, parsed_command, options)
+        self.processes[popen.pid] = Process(popen, parsed_command, options, launch_thread=listen)
         return self.processes[popen.pid]
     
     def __getitem__(self, pid: int) -> Process:
