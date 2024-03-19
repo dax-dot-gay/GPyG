@@ -12,7 +12,7 @@ class Process:
         self.popen = popen
         self.options = options
         self.command: str = shlex.join(command) if type(command) == list else command
-        self.output = BytesIO(b"")
+        self.output = ""
         self.code: int | None = None
         self.listener = threading.Thread(target=self.listen, name=f"listener-{self.command}", daemon=True)
         self.listener.start()
@@ -22,7 +22,8 @@ class Process:
             if self.poll() != None:
                 return
             
-            self.output.write(self.popen.stdout.read(1))
+            data = self.popen.stdout.read(1).decode()
+            self.output += data
             self.popen.stdout.flush()
         
     @property
@@ -46,47 +47,51 @@ class Process:
             self.popen.stdin.write(data)
             self.popen.stdin.flush()
             
-    def lines(self, reset: bool = True, strip: bool = True) -> Generator[bytes, Any, None]:
-        if reset:
-            self.output.seek(0)
+    def lines(self, seek: int = 0, strip: bool = True) -> Generator[str, Any, None]:
+        if seek < 0:
+            pointer = len(self.output) + seek
+        else:
+            pointer = min(seek, len(self.output))
             
-        chunk = b""
+        chunk = ""
         while True:
             if self.code != None:
                 yield chunk.strip() if strip else chunk
                 return
-            char = self.output.read(1)
-            if len(char) > 0:
-                chunk += char
-                
-            if chunk.endswith(b"\n"):
-                if strip:
-                    yield chunk.strip()
-                else:
-                    yield chunk
+            
+            try:
+                char = self.output[pointer]
+                pointer += 1
+                if len(char) > 0:
+                    chunk += char
                     
-                chunk = b""
+                if chunk.endswith("\n"):
+                    if strip:
+                        yield chunk.strip()
+                    else:
+                        yield chunk
+                        
+                    chunk = ""
+            except IndexError:
+                pass
             
             time.sleep(0)
             
-    def tui(self, pattern: str, match_mode: Literal["contains", "regex", "line"] = "contains", reset: bool = True) -> Generator[list[str], Any, None]:
-        if reset:
-            self.output.seek(0)
-            
+    def tui(self, pattern: str, match_mode: Literal["contains", "regex", "line"] = "contains", seek: int = 0) -> Generator[list[str], Any, None]:
         lines = []
-        for line in self.lines(reset=reset):
-            lines.append(line.decode())
+        for line in self.lines(seek=seek):
+            lines.append(line)
             match match_mode:
                 case "contains":
-                    if pattern in line.decode():
+                    if pattern in line:
                         yield lines[:]
                         lines = []
                 case "line":
-                    if pattern == line.decode():
+                    if pattern == line:
                         yield lines[:]
                         lines = []
                 case "regex":
-                    if re.search(pattern, line.decode()):
+                    if re.search(pattern, line):
                         yield lines[:]
                         lines = []
                         
@@ -102,12 +107,9 @@ class Process:
         else:
             return self.code
         
-                        
-        
-            
-    
-            
-            
+    def send_line(self, line: str):
+        if self.poll() == None:
+            self.write(line.encode().strip() + b"\n")
 
 class ProcessSession:
     def __init__(self, shell: bool | None = None, environment: dict[str, str] | None = None, working_directory: str | None = None, cleanup_mode: Literal["kill", "wait", "ignore"] = "kill") -> None:
@@ -128,10 +130,10 @@ class ProcessSession:
         return result
     
     def __enter__(self):
-        self.processes = []
+        self.processes = {}
         return self
     
-    def __exit__(self):
+    def __exit__(self, *args, **kwargs):
         match self.cleanup:
             case "kill":
                 for pid, process in list(self.processes.items()):
