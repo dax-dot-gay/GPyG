@@ -1,8 +1,10 @@
 from datetime import datetime, timedelta
 from typing import Literal
+
+from pydantic import PrivateAttr
 from .common import BaseOperator
-from ..util import ExecutionError
-from ..models import InfoLine, parse_infoline, Key
+from ..util import ExecutionError, ProcessSession
+from ..models import InfoLine, parse_infoline, KeyModel
 
 
 class KeyOperator(BaseOperator):
@@ -17,7 +19,7 @@ class KeyOperator(BaseOperator):
         expiration: datetime | timedelta | int | None = None,
         passphrase: str | None = None,
         force: bool = False,
-    ) -> Key | None:
+    ) -> "Key | None":
         uid = "{name}{email}{comment}".format(name=name, email=f" <{email}> " if email else " ", comment=f"({comment})" if comment else "").strip()
 
         if isinstance(expiration, datetime):
@@ -51,7 +53,7 @@ class KeyOperator(BaseOperator):
         pattern: str = None,
         key_type: Literal["public", "secret"] = "public",
         check_sigs: bool = True,
-    ) -> list[Key]:
+    ) -> list["Key"]:
         args = [
             i
             for i in [
@@ -71,4 +73,35 @@ class KeyOperator(BaseOperator):
 
         lines = [i for i in proc.output.splitlines() if not i.startswith("gpg: ")]
         parsed = [parse_infoline(line) for line in lines]
-        return Key.from_infolines(parsed)
+        return Key.from_infolines(self, parsed)
+
+    def get_key(
+        self, fingerprint: str, key_type: Literal["public", "secret"] = "public"
+    ) -> "Key | None":
+        results = self.list_keys(pattern=fingerprint, key_type=key_type)
+        if len(results) == 0:
+            return None
+
+        return results[0]
+
+
+class Key(KeyModel):
+    _operator: KeyOperator
+
+    def __init__(self, operator: KeyOperator, **kwargs):
+        super().__init__(**kwargs)
+        self._operator = operator
+
+    @property
+    def operator(self) -> KeyOperator:
+        return self._operator
+
+    @property
+    def session(self) -> ProcessSession:
+        return self.operator.session
+
+    @classmethod
+    def from_infolines(
+        cls, operator: KeyOperator, lines: list[InfoLine]
+    ) -> list[KeyModel]:
+        return [Key(operator, **i.model_dump()) for i in super().from_infolines(lines)]

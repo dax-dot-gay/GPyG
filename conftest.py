@@ -20,3 +20,16 @@ def scoped_instance(scoped_homedir) -> GPG:
 @pytest.fixture
 def instance(homedir) -> GPG:
     return GPG(homedir=homedir, kill_existing_agent=True)
+
+
+@pytest.fixture(scope="module")
+def environment(scoped_instance: GPG) -> GPG:
+    for user in range(4):
+        scoped_instance.keys.generate_key(
+            name=f"Test User {user}",
+            email=f"test-user-{user}@example.com",
+            comment=f"Test user # {user}",
+            passphrase=f"test-psk-{user}",
+        )
+
+    return scoped_instance

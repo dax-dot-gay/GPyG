@@ -116,12 +116,19 @@ class InfoLine(BaseModel):
     def as_dict(self) -> dict[str, Any]:
         return {"record_type": self.record_type, "field_array": self.field_array}
 
+    def as_raw(self) -> dict[str, Any]:
+        return {"record_type": self.record_type, "field_array": self.field_array}
+
     def as_json(self):
         return to_jsonable_python(self.as_dict())
 
-    @model_serializer
+    @model_serializer(when_used="always")
+    def _serialize_raw(self) -> dict:
+        return self.as_raw()
+
+    @model_serializer(when_used="json")
     def _serialize(self) -> dict:
-        return self.as_dict()
+        return self.as_json()
 
 
 # pub, sub
