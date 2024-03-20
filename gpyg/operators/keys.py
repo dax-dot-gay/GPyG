@@ -20,7 +20,11 @@ class KeyOperator(BaseOperator):
         passphrase: str | None = None,
         force: bool = False,
     ) -> "Key | None":
-        uid = "{name}{email}{comment}".format(name=name, email=f" <{email}> " if email else " ", comment=f"({comment})" if comment else "").strip()
+        uid = "{name}{email}{comment}".format(
+            name=name,
+            email=f" <{email}> " if email else " ",
+            comment=f"({comment})" if comment else "",
+        ).strip()
 
         if isinstance(expiration, datetime):
             expire_str = expiration.isoformat()
@@ -37,7 +41,7 @@ class KeyOperator(BaseOperator):
             uid=uid,
             algo=algorithm if algorithm else "default",
             usage=",".join(usage) if usage else "default",
-            expire=expire_str
+            expire=expire_str,
         )
         proc = self.session.spawn(command)
         proc.wait()
@@ -105,3 +109,15 @@ class Key(KeyModel):
         cls, operator: KeyOperator, lines: list[InfoLine]
     ) -> list[KeyModel]:
         return [Key(operator, **i.model_dump()) for i in super().from_infolines(lines)]
+
+    def reload(self) -> "Key":
+        result = self.operator.get_key(self.fingerprint, key_type=self.type)
+        if result:
+            for name, value in result.__dict__.items():
+                setattr(self, name, value)
+        else:
+            raise RuntimeError(
+                "This key has been deleted/is no longer able to be referenced."
+            )
+
+        return self
