@@ -122,18 +122,56 @@ class Key(KeyModel):
         return self
 
     def export(
-        self, mode: Literal["gpg", "ascii"] = "ascii", password: str | None = None
+        self,
+        mode: Literal["gpg", "ascii"] = "ascii",
+        password: str | None = None,
+        filters: list[tuple[Literal["keep-uid", "drop-subkey"], str]] = [],
+        export_local_sigs: bool | None = None,
+        export_attributes: bool | None = None,
+        export_sensitive_revkeys: bool | None = None,
+        export_backup: bool | None = None,
+        export_clean: bool | None = None,
+        export_minimal: bool | None = None,
+        export_revocs: bool | None = None,
+        export_dane: bool | None = None,
+        mode1003: bool | None = None,
     ) -> bytes:
-        cmd = "gpg{format} --pinentry-mode loopback --batch{passphrase} --export{secret} {fingerprint}".format(
+        options = dict(
+            export_local_sigs=export_local_sigs,
+            export_attributes=export_attributes,
+            export_sensitive_revkeys=export_sensitive_revkeys,
+            export_backup=export_backup,
+            export_clean=export_clean,
+            export_minimal=export_minimal,
+            export_revocs=export_revocs,
+            export_dane=export_dane,
+            mode1003=mode1003,
+        )
+
+        cmd = "gpg{format} --pinentry-mode loopback --batch{passphrase} --export-options '{options}' {filters} --export{secret} {fingerprint}".format(
             format=" --armor" if mode == "ascii" else "",
             secret="-secret-keys" if self.type == "secret" else "",
             fingerprint=self.fingerprint,
             passphrase=" --passphrase-fd 0" if password else "",
+            options=",".join(
+                [
+                    ("" if v else "no-") + k.replace("_", "-")
+                    for k, v in options.items()
+                    if v != None
+                ]
+            ),
+            filters=(
+                " ".join(
+                    ["--export-filter " + name + "=" + expr for name, expr in filters]
+                )
+                if len(filters) > 0
+                else ""
+            ),
         )
 
         result = self.session.run(
             cmd, decode=False, input=password + "\n" if password else None
-        ).output.strip()
-        if b"BEGIN PGP" in result and b"END PGP" in result:
-            return result
-        raise ExecutionError(result.decode())
+        )
+        if result.code == 0:
+            return result.output.strip()
+        raise ExecutionError(result.output.decode())
