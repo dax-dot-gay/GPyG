@@ -38,3 +38,15 @@ def test_subkeys_wrapped(environment):
     result = environment.keys.list_keys(key_type="secret")
     for key in result:
         assert key.subkeys[0].operator != None
+
+
+def test_export(environment):
+    result = environment.keys.list_keys()
+    exported = result[0].export()
+    assert exported.startswith(b"-----BEGIN PGP PUBLIC KEY BLOCK-----")
+    assert exported.endswith(b"-----END PGP PUBLIC KEY BLOCK-----")
+
+    result = environment.keys.list_keys(key_type="secret")
+    exported = result[0].export(password="test-psk-0")
+    assert exported.startswith(b"-----BEGIN PGP PRIVATE KEY BLOCK-----")
+    assert exported.endswith(b"-----END PGP PRIVATE KEY BLOCK-----")

@@ -120,3 +120,20 @@ class Key(KeyModel):
             )
 
         return self
+
+    def export(
+        self, mode: Literal["gpg", "ascii"] = "ascii", password: str | None = None
+    ) -> bytes:
+        cmd = "gpg{format} --pinentry-mode loopback --batch{passphrase} --export{secret} {fingerprint}".format(
+            format=" --armor" if mode == "ascii" else "",
+            secret="-secret-keys" if self.type == "secret" else "",
+            fingerprint=self.fingerprint,
+            passphrase=" --passphrase-fd 0" if password else "",
+        )
+
+        result = self.session.run(
+            cmd, decode=False, input=password + "\n" if password else None
+        ).output.strip()
+        if b"BEGIN PGP" in result and b"END PGP" in result:
+            return result
+        raise ExecutionError(result.decode())
