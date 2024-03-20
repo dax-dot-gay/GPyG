@@ -199,8 +199,7 @@ class Key(KeyModel):
             f"gpg --dry-run --batch --passphrase-fd 0 --pinentry-mode loopback --passwd '{self.fingerprint}'",
             input="\n",
         )
-        print(proc.output)
-        return proc.code != 0
+        return "error" in proc.output
 
     def check_password(self, password: str) -> bool:
         if not self.is_protected():
@@ -210,5 +209,4 @@ class Key(KeyModel):
             f"gpg --dry-run --batch --passphrase-fd 0 --pinentry-mode loopback --passwd '{self.fingerprint}'",
             input=password + "\n",
         )
-        print(proc.output)
-        return proc.code == 0
+        return not "error" in proc.output
