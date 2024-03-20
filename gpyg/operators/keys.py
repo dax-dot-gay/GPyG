@@ -129,7 +129,6 @@ class KeyOperator(BaseOperator):
 
 class Key(KeyModel):
     operator: KeyOperator = Field(exclude=True)
-    subkeys: list["Key"] = []
     model_config = {"arbitrary_types_allowed": True}
 
     @property
@@ -141,16 +140,13 @@ class Key(KeyModel):
         """
         return self.operator.session
 
-    @staticmethod
-    def apply(operator: KeyOperator, model: KeyModel) -> "Key":
-        model.subkeys = [Key.apply(operator, i) for i in model.subkeys][:]
-        return Key(operator=operator, **dict(model))
-
     @classmethod
     def from_infolines(
         cls, operator: KeyOperator, lines: list[InfoLine]
     ) -> list["Key"]:
-        return [Key.apply(operator, i) for i in super().from_infolines(lines)]
+        return [
+            Key(operator=operator, **dict(i)) for i in super().from_infolines(lines)
+        ]
 
     def reload(self) -> "Key":
         """Reloads cached information from the keyring.
@@ -346,3 +342,38 @@ class Key(KeyModel):
                 target.reload()
         else:
             raise ExecutionError(proc.output)
+
+    def add_subkey(
+        self,
+        password: str | None = None,
+        algorithm: str | None = None,
+        usage: list[Literal["sign", "auth", "encr", "cert"]] | None = None,
+        expiration: datetime | timedelta | int | str | None = None,
+        key_passphrase: str | None = None,
+    ):
+        if isinstance(expiration, datetime):
+            expire_str = expiration.isoformat()
+        elif isinstance(expiration, timedelta):
+            expire_str = "seconds=" + str(expiration.seconds)
+        elif type(expiration) == int:
+            expire_str = "seconds=" + str(expiration)
+        elif type(expiration) == str:
+            expire_str = expiration
+        else:
+            expire_str = "none"
+        cmd = "gpg --batch --pinentry-mode loopback --passphrase-fd 0 --yes --quick-add-key {fingerprint} {algo} {usage} {expiration}".format(
+            fingerprint=self.fingerprint,
+            algo=algorithm if algorithm else "default",
+            usage=",".join(usage) if usage else "default",
+            expiration=expire_str,
+        )
+
+        proc = self.session.run(
+            cmd,
+            input="\n".join(
+                [password if password else "", key_passphrase if key_passphrase else ""]
+            )
+            + "\n",
+        )
+        print(proc.output)
+        self.reload()

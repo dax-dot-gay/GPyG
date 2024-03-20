@@ -1,3 +1,3 @@
 from .config import GPGConfig
 from .infolines import *
-from .key import KeyModel
+from .key import KeyModel, SubkeyModel

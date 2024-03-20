@@ -34,12 +34,6 @@ def test_key_reload(environment):
         assert previous == key.reload().fingerprint
 
 
-def test_subkeys_wrapped(environment):
-    result = environment.keys.list_keys(key_type="secret")
-    for key in result:
-        assert key.subkeys[0].operator != None
-
-
 def test_export(environment):
     result = environment.keys.list_keys()
     exported = result[0].export()

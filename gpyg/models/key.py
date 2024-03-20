@@ -3,6 +3,25 @@ from .infolines import *
 from datetime import datetime
 
 
+class SubkeyModel(BaseModel):
+    type: Literal["public", "secret"]
+    validity: FieldValidity
+    length: int
+    algorithm: int
+    key_id: str
+    creation_date: datetime | None
+    expiration_date: datetime | None
+    owner_trust: str | None
+    capabilities: list[KeyCapability]
+    overall_capabilities: list[KeyCapability]
+    curve_name: str | None
+    serial_number: str | None = None
+    fingerprint: str | None = None
+    keygrip: str | None = None
+    signatures: list[SignatureInfo] = []
+    user_ids: list[UserIDInfo] = []
+
+
 class KeyModel(BaseModel):
     type: Literal["public", "secret"]
     validity: FieldValidity
@@ -20,23 +39,21 @@ class KeyModel(BaseModel):
     keygrip: str | None = None
     signatures: list[SignatureInfo] = []
     user_ids: list[UserIDInfo] = []
-    subkeys: list["KeyModel"] = []
+    subkeys: list[SubkeyModel] = []
 
     @staticmethod
     def get_subkeys(
         key: "KeyModel", subkey_map: dict[str, list["KeyModel"]]
     ) -> list["KeyModel"]:
         if key.fingerprint and key.fingerprint in subkey_map.keys():
-            for subkey in subkey_map[key.fingerprint]:
-                subkey.subkeys = KeyModel.get_subkeys(subkey, subkey_map)
-                key.subkeys.append(subkey)
+            key.subkeys = subkey_map[key.fingerprint]
             return key.subkeys
         else:
             return []
 
     @classmethod
     def from_infolines(cls, lines: list[InfoLine]) -> list["KeyModel"]:
-        key_mapping: dict[str, list[KeyModel]] = {"root": []}
+        key_mapping: dict[str, list[KeyModel | SubkeyModel]] = {"root": []}
         context: KeyModel = None
         for line in lines:
             if line.record_type in [
@@ -61,14 +78,25 @@ class KeyModel(BaseModel):
                             key_mapping[initial_sigs[0].signer_fingerprint] = []
                         key_mapping[initial_sigs[0].signer_fingerprint].append(context)
 
-                context = KeyModel(
-                    type=(
-                        "public"
-                        if line.record_type
-                        in [InfoRecord.PUBLIC_KEY, InfoRecord.SUBKEY]
-                        else "secret"
-                    ),
-                    **line.as_dict(),
+                context = (
+                    KeyModel(
+                        type=(
+                            "public"
+                            if line.record_type == InfoRecord.PUBLIC_KEY
+                            else "secret"
+                        ),
+                        **line.as_dict(),
+                    )
+                    if line.record_type
+                    in [InfoRecord.PUBLIC_KEY, InfoRecord.SECRET_KEY]
+                    else SubkeyModel(
+                        type=(
+                            "public"
+                            if line.record_type == InfoRecord.SUBKEY
+                            else "secret"
+                        ),
+                        **line.as_dict(),
+                    )
                 )
             elif (
                 line.record_type
