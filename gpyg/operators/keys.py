@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Literal
 
-from pydantic import PrivateAttr
+from pydantic import Field, PrivateAttr
 from .common import BaseOperator
 from ..util import ExecutionError, ProcessSession
 from ..models import InfoLine, parse_infoline, KeyModel
@@ -90,25 +90,24 @@ class KeyOperator(BaseOperator):
 
 
 class Key(KeyModel):
-    _operator: KeyOperator
-
-    def __init__(self, operator: KeyOperator, **kwargs):
-        super().__init__(**kwargs)
-        self._operator = operator
-
-    @property
-    def operator(self) -> KeyOperator:
-        return self._operator
+    operator: KeyOperator = Field(exclude=True)
+    subkeys: list["Key"] = []
+    model_config = {"arbitrary_types_allowed": True}
 
     @property
     def session(self) -> ProcessSession:
         return self.operator.session
 
+    @staticmethod
+    def apply(operator: KeyOperator, model: KeyModel) -> "Key":
+        model.subkeys = [Key.apply(operator, i) for i in model.subkeys][:]
+        return Key(operator=operator, **dict(model))
+
     @classmethod
     def from_infolines(
         cls, operator: KeyOperator, lines: list[InfoLine]
-    ) -> list[KeyModel]:
-        return [Key(operator, **i.model_dump()) for i in super().from_infolines(lines)]
+    ) -> list["Key"]:
+        return [Key.apply(operator, i) for i in super().from_infolines(lines)]
 
     def reload(self) -> "Key":
         result = self.operator.get_key(self.fingerprint, key_type=self.type)
