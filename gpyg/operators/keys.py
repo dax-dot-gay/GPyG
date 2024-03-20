@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Literal
 
 from pydantic import Field, PrivateAttr
@@ -175,3 +175,21 @@ class Key(KeyModel):
         if result.code == 0:
             return result.output.strip()
         raise ExecutionError(result.output.decode())
+
+    def set_expiration(
+        self,
+        expiration: date | None = None,
+        subkeys: list[str] | Literal["*"] | None = None,
+        password: str | None = None,
+    ) -> None:
+        cmd = "gpg --batch --pinentry-mode loopback --passphrase-fd 0 --quick-set-expire {fingerprint} {expiry} {targets}".format(
+            fingerprint=self.fingerprint,
+            expiry=expiration.isoformat() if expiration else "0",
+            targets=(" ".join(subkeys) if subkeys != "*" else "'*'") if subkeys else "",
+        )
+
+        result = self.session.run(cmd, input=password + "\n" if password else None)
+        if result.code == 0:
+            self.reload()
+            return
+        raise ExecutionError(result.output)

@@ -50,3 +50,9 @@ def test_export(environment):
     exported = result[0].export(password="test-psk-0")
     assert exported.startswith(b"-----BEGIN PGP PRIVATE KEY BLOCK-----")
     assert exported.endswith(b"-----END PGP PRIVATE KEY BLOCK-----")
+
+
+def test_expire_key(environment):
+    result = environment.keys.list_keys()[0]
+    result.set_expiration(expiration=datetime.date(2026, 1, 1), password="test-psk-0")
+    assert result.expiration_date.date() == datetime.date(2026, 1, 1)
