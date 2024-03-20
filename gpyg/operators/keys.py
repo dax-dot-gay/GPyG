@@ -20,6 +20,24 @@ class KeyOperator(BaseOperator):
         passphrase: str | None = None,
         force: bool = False,
     ) -> "Key | None":
+        """Generate a key given a set of parameters.
+
+        Args:
+            name (str): UID Name
+            email (str | None, optional): Optional UID email. Defaults to None.
+            comment (str | None, optional): Optional UID comment. Defaults to None.
+            algorithm (str | None, optional): Algorithm name. Defaults to None.
+            usage (list["sign" | "auth" | "encr" | "cert"] | None, optional): List of usages, or None for default. Defaults to None.
+            expiration (datetime | timedelta | int | None, optional): Key expiration. Defaults to None.
+            passphrase (str | None, optional): Key passphrase (if left empty, no passphrase). Defaults to None.
+            force (bool, optional): Force creation. Defaults to False.
+
+        Raises:
+            ExecutionError: If key generation fails
+
+        Returns:
+            Returns the generated key
+        """
         uid = "{name}{email}{comment}".format(
             name=name,
             email=f" <{email}> " if email else " ",
@@ -58,6 +76,17 @@ class KeyOperator(BaseOperator):
         key_type: Literal["public", "secret"] = "public",
         check_sigs: bool = True,
     ) -> list["Key"]:
+        """List keys, optionally filtering by a pattern.
+
+        Args:
+            pattern (str | None, optional): Optional pattern to filter results by
+            key_type (public | secret, optional): What key type to return
+            check_sigs (bool, optional): Whether to check signatures or just list them
+
+        Returns:
+            List of results
+        """
+
         args = [
             i
             for i in [
@@ -82,6 +111,15 @@ class KeyOperator(BaseOperator):
     def get_key(
         self, fingerprint: str, key_type: Literal["public", "secret"] = "public"
     ) -> "Key | None":
+        """Gets a specific key given a fingerprint
+
+        Args:
+            fingerprint (str): Fingerprint to search for
+            key_type (public | secret, optional): What key type to return. Defaults to "public".
+
+        Returns:
+            The located Key, or None if not found.
+        """
         results = self.list_keys(pattern=fingerprint, key_type=key_type)
         if len(results) == 0:
             return None
@@ -96,6 +134,11 @@ class Key(KeyModel):
 
     @property
     def session(self) -> ProcessSession:
+        """Gets the internal ProcessSession instance
+
+        Returns:
+            ProcessSession: Internal session
+        """
         return self.operator.session
 
     @staticmethod
@@ -110,6 +153,14 @@ class Key(KeyModel):
         return [Key.apply(operator, i) for i in super().from_infolines(lines)]
 
     def reload(self) -> "Key":
+        """Reloads cached information from the keyring.
+
+        Raises:
+            RuntimeError: Fails if the key has been deleted or is otherwise inaccessible
+
+        Returns:
+            Key: A reference to the Key instance
+        """
         result = self.operator.get_key(self.fingerprint, key_type=self.type)
         if result:
             for name, value in result.__dict__.items():
@@ -136,6 +187,29 @@ class Key(KeyModel):
         export_dane: bool | None = None,
         mode1003: bool | None = None,
     ) -> bytes:
+        """Exports a key in the given format.
+
+        Args:
+            mode (gpg | ascii, optional): Whether to output as GPG binary or ASCII armor. Defaults to "ascii".
+            password (str | None, optional): Password required to unlock secret key, which may or may not be relevant. Defaults to None.
+            filters (list[tuple[keep-uid | drop-subkey, str]], optional): List of export filters. For more information, see the GPG manual. Defaults to [].
+
+            export_local_sigs (bool | None, optional): Allow exporting key signatures marked as "local". This is not generally useful unless a shared keyring scheme is being used. Defaults to no. Defaults to None.
+            export_attributes (bool | None, optional): Include attribute user IDs (photo IDs) while exporting. Not including attribute user IDs is useful to export keys that are going to be used by an OpenPGP program that does not accept attribute user IDs. Defaults to yes. Defaults to None.
+            export_sensitive_revkeys (bool | None, optional): Include designated revoker information that was marked as "sensitive". Defaults to no. Defaults to None.
+            export_backup (bool | None, optional): Export for use as a backup. The exported data includes all data which is needed to restore the key or keys later with GnuPG. The format is basically the OpenPGP format but enhanced with GnuPG specific data. All other contradicting options are overridden. Defaults to None.
+            export_clean (bool | None, optional): Compact (remove all signatures from) user IDs on the key being exported if the user IDs are not usable. Also, do not export any signatures that are not usable. This includes signatures that were issued by keys that are not present on the keyring. This option is the same as running the --edit-key command "clean" before export except that the local copy of the key is not modified. Defaults to no. Defaults to None.
+            export_minimal (bool | None, optional): Export the smallest key possible. This removes all signatures except the most recent self-signature on each user ID. This option is the same as running the --edit-key command "minimize" before export except that the local copy of the key is not modified. Defaults to no. Defaults to None.
+            export_revocs (bool | None, optional): Export only standalone revocation certificates of the key. This option does not export revocations of 3rd party certificate revocations. Defaults to None.
+            export_dane (bool | None, optional): Instead of outputting the key material output OpenPGP DANE records suitable to put into DNS zone files. An ORIGIN line is printed before each record to allow diverting the records to the corresponding zone file. Defaults to None.
+            mode1003 (bool | None, optional): Enable the use of a new secret key export format. This format avoids the re-encryption as required with the current OpenPGP format and also improves the security of the secret key if it has been protected with a passphrase. Note that an unprotected key is exported as-is and thus not secure; the general rule to convey secret keys in an OpenPGP encrypted file still applies with this mode. Versions of GnuPG before 2.4.0 are not able to import such a secret file. Defaults to None.
+
+        Raises:
+            ExecutionError: Raised if the attempted export operation fails.
+
+        Returns:
+            bytes: byte-encoded output.
+        """
         options = dict(
             export_local_sigs=export_local_sigs,
             export_attributes=export_attributes,
@@ -182,6 +256,16 @@ class Key(KeyModel):
         subkeys: list[str] | Literal["*"] | None = None,
         password: str | None = None,
     ) -> None:
+        """Sets the expiration date of the current Key
+
+        Args:
+            expiration (date | None, optional): Expiration date, or None to remove expiration. Defaults to None.
+            subkeys (list[str] | Literal[, optional): Which subkeys to apply to. Can be a list of fingerprints, "*", or None for just the primary key. Defaults to None.
+            password (str | None, optional): Key password. Defaults to None.
+
+        Raises:
+            ExecutionError: Raised if the operation fails
+        """
         cmd = "gpg --batch --pinentry-mode loopback --passphrase-fd 0 --quick-set-expire {fingerprint} {expiry} {targets}".format(
             fingerprint=self.fingerprint,
             expiry=expiration.isoformat() if expiration else "0",
@@ -195,6 +279,11 @@ class Key(KeyModel):
         raise ExecutionError(result.output)
 
     def is_protected(self) -> bool:
+        """Checks if the current key is password-protected
+
+        Returns:
+            bool: True if protected, False otherwise
+        """
         proc = self.session.run(
             f"gpg --dry-run --batch --passphrase-fd 0 --pinentry-mode loopback --passwd '{self.fingerprint}'",
             input="\n",
@@ -202,6 +291,14 @@ class Key(KeyModel):
         return "error" in proc.output
 
     def check_password(self, password: str) -> bool:
+        """Checks whether the given password is valid for this key
+
+        Args:
+            password (str): Password to try
+
+        Returns:
+            bool: True if correct, False otherwise
+        """
         if not self.is_protected():
             return True
 
@@ -210,3 +307,12 @@ class Key(KeyModel):
             input=password + "\n",
         )
         return not "error" in proc.output
+
+    def sign_key(
+        target: str | "Key",
+        users: list[str] | None = None,
+        password: str | None = None,
+        exportable: bool = True,
+        force: bool = False,
+    ):
+        pass

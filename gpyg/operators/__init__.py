@@ -1,1 +1,1 @@
-from .keys import KeyOperator
+from .keys import KeyOperator, Key

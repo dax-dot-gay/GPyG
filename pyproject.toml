@@ -24,7 +24,8 @@ classifiers = [
 [project.optional-dependencies]
 dev = [
   "pytest",
-  "mkdocs"
+  "mkdocs",
+  "mkdocstrings[python]"
 ]
 
 [project.urls]

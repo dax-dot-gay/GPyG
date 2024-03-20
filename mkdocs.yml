@@ -4,6 +4,23 @@ theme:
   highlightjs: true
 nav:
   - Home: "index.md"
-  - Operators:
-    - Basics: "operators/basics.md"
-    - Key Operations: "operators/keys.md"
+  - API Reference:
+    - GPG Instance: "api/gpg-instance.md"
+    - Operators:
+      - Key Operations: "api/operators/keys.md"
+
+watch:
+  - gpyg
+
+plugins:
+- mkdocstrings:
+    default_handler: python
+    handlers:
+      python:
+        paths: [gpyg]
+        options:
+          docstring_style: google
+          allow_inspection: true
+          show_bases: true
+          heading_level: 3
+          members_order: source
