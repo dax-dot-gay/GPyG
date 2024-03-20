@@ -7,8 +7,7 @@ name = "gpyg"
 version = "0.0.1"
 dependencies = [
     "typing-extensions",
-    "pydantic",
-    "pytest"
+    "pydantic"
 ]
 requires-python = ">=3.12"
 authors = [
@@ -20,6 +19,12 @@ license = {file = "LICENSE"}
 keywords = ["gpg", "pgp", "cryptography"]
 classifiers = [
   "Programming Language :: Python"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "mkdocs"
 ]
 
 [project.urls]

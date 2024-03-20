@@ -19,4 +19,4 @@ def scoped_instance(scoped_homedir) -> GPG:
 
 @pytest.fixture
 def instance(homedir) -> GPG:
-    return GPG(homedir=scoped_homedir, kill_existing_agent=True)
+    return GPG(homedir=homedir, kill_existing_agent=True)

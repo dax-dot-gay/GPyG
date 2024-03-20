@@ -6,6 +6,7 @@ from ..models import InfoLine, parse_infoline, Key
 
 
 class KeyOperator(BaseOperator):
+
     def generate_key(
         self,
         name: str,
@@ -16,7 +17,7 @@ class KeyOperator(BaseOperator):
         expiration: datetime | timedelta | int | None = None,
         passphrase: str | None = None,
         force: bool = False,
-    ):
+    ) -> Key | None:
         uid = "{name}{email}{comment}".format(name=name, email=f" <{email}> " if email else " ", comment=f"({comment})" if comment else "").strip()
 
         if isinstance(expiration, datetime):
@@ -38,8 +39,10 @@ class KeyOperator(BaseOperator):
         )
         proc = self.session.spawn(command)
         proc.wait()
-        if "certificate stored" in proc.output:
-            pass
+        if "certificate stored" in proc.output.strip().split("\n")[-1]:
+            return self.list_keys(
+                pattern=proc.output.strip().split("\n")[-1].split("/")[-1].split(".")[0]
+            )[0]
         else:
             raise ExecutionError(proc.output)
 
@@ -48,7 +51,7 @@ class KeyOperator(BaseOperator):
         pattern: str = None,
         key_type: Literal["public", "secret"] = "public",
         check_sigs: bool = True,
-    ) -> list[InfoLine]:
+    ) -> list[Key]:
         args = [
             i
             for i in [
