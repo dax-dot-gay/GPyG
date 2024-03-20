@@ -29,7 +29,7 @@ def environment(scoped_instance: GPG) -> GPG:
             name=f"Test User {user}",
             email=f"test-user-{user}@example.com",
             comment=f"Test user # {user}",
-            passphrase=f"test-psk-{user}",
+            passphrase=f"test-psk-{user}" if user < 2 else None,
         )
 
     return scoped_instance

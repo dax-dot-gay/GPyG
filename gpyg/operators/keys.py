@@ -193,3 +193,20 @@ class Key(KeyModel):
             self.reload()
             return
         raise ExecutionError(result.output)
+
+    def is_protected(self) -> bool:
+        proc = self.session.run(
+            f"gpg --dry-run --batch --passphrase-fd 0 --pinentry-mode loopback --passwd '{self.fingerprint}'",
+            input="\n",
+        )
+        return proc.code != 0
+
+    def check_password(self, password: str) -> bool:
+        if not self.is_protected():
+            return True
+
+        proc = self.session.run(
+            f"gpg --dry-run --batch --passphrase-fd 0 --pinentry-mode loopback --passwd '{self.fingerprint}'",
+            input=password + "\n",
+        )
+        return proc.code == 0

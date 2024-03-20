@@ -56,3 +56,15 @@ def test_expire_key(environment):
     result = environment.keys.list_keys()[0]
     result.set_expiration(expiration=datetime.date(2026, 1, 1), password="test-psk-0")
     assert result.expiration_date.date() == datetime.date(2026, 1, 1)
+
+
+def test_key_passwords(environment):
+    keys = environment.keys.list_keys()
+    has_pass = keys[0]
+    no_pass = keys[2]
+    assert has_pass.is_protected()
+    assert has_pass.check_password("test-psk-0")
+    assert not has_pass.check_password("test-psk-2")
+
+    assert not no_pass.is_protected()
+    assert no_pass.check_password("wrong")
