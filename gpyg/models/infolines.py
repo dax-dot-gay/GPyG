@@ -1,7 +1,8 @@
 import datetime
 from enum import IntEnum, StrEnum
 from typing import Any, Literal
-from pydantic import BaseModel
+from typing_extensions import Literal
+from pydantic import BaseModel, model_serializer
 from pydantic_core import to_jsonable_python
 
 
@@ -113,10 +114,14 @@ class InfoLine(BaseModel):
         return [self.field(i) for i in range(2, 22)]
 
     def as_dict(self) -> dict[str, Any]:
-        return self.model_dump()
+        return {"record_type": self.record_type, "field_array": self.field_array}
 
     def as_json(self):
         return to_jsonable_python(self.as_dict())
+
+    @model_serializer
+    def _serialize(self) -> dict:
+        return self.as_dict()
 
 
 # pub, sub

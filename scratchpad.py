@@ -8,6 +8,7 @@ with TemporaryDirectory() as tmpdir:
     gpg.keys.generate_key("Bongus", passphrase="beenusususus")
     print(
         json.dumps(
-            [i.as_json() for i in gpg.keys.list_keys(key_type="secret")], indent=4
+            [i.model_dump(mode="json") for i in gpg.keys.list_keys(key_type="secret")],
+            indent=4,
         )
     )

@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from typing import Literal
 from .common import BaseOperator
 from ..util import ExecutionError
-from ..models import InfoLine, parse_infoline
+from ..models import InfoLine, parse_infoline, Key
 
 
 class KeyOperator(BaseOperator):
@@ -47,20 +47,17 @@ class KeyOperator(BaseOperator):
         self,
         pattern: str = None,
         key_type: Literal["public", "secret"] = "public",
-        include_fingerprint: bool = True,
-        include_subkey_fingerprint: bool = True,
-        include_keygrip: bool = True,
-        include_signatures: bool = True,
+        check_sigs: bool = True,
     ) -> list[InfoLine]:
         args = [
             i
             for i in [
                 "gpg",
                 "--with-colons",
-                "--with-fingerprint" if include_fingerprint else None,
-                "--with-subkey-fingerprint" if include_subkey_fingerprint else None,
-                "--with-keygrip" if include_keygrip else None,
-                "--with-sig-check" if include_signatures else None,
+                "--with-fingerprint",
+                "--with-subkey-fingerprint",
+                "--with-keygrip",
+                "--with-sig-check" if check_sigs else "--with-sig-list",
                 f"--list-{key_type}-keys",
                 pattern,
             ]
@@ -71,4 +68,4 @@ class KeyOperator(BaseOperator):
 
         lines = [i for i in proc.output.splitlines() if not i.startswith("gpg: ")]
         parsed = [parse_infoline(line) for line in lines]
-        return parsed
+        return Key.from_infolines(parsed)
