@@ -68,3 +68,9 @@ def test_key_passwords(environment):
 
     assert not no_pass.is_protected()
     assert no_pass.check_password("wrong")
+
+
+def test_sign_key(environment):
+    keys = environment.keys.list_keys()
+    keys[0].sign_key(keys[1], password="test-psk-0")
+    assert len(keys[1].signatures) == 2

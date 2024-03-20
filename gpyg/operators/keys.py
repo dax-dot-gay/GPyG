@@ -309,10 +309,40 @@ class Key(KeyModel):
         return not "error" in proc.output
 
     def sign_key(
-        target: str | "Key",
+        self,
+        target: "str | Key",
         users: list[str] | None = None,
         password: str | None = None,
         exportable: bool = True,
         force: bool = False,
     ):
-        pass
+        """Signs another key using the current key
+
+        Args:
+            target (str | Key): Key to sign
+            users (list[str] | None, optional): Which users to sign. Defaults to None.
+            password (str | None, optional): Password of current key, if needed. Defaults to None.
+            exportable (bool, optional): Whether the signature should be exportable. Defaults to True.
+            force (bool, optional): Whether to force signing. Defaults to False.
+
+        Raises:
+            ExecutionError: Raised if the operation fails.
+        """
+        if isinstance(target, Key):
+            parsed_target = target.fingerprint
+        else:
+            parsed_target = target
+
+        cmd = "gpg --batch --pinentry-mode loopback --passphrase-fd 0 -u {current} {force} --quick-{local}sign-key {fingerprint} {names}".format(
+            current=self.fingerprint,
+            force="--force-sign-key" if force else "",
+            local="" if exportable else "l",
+            fingerprint=parsed_target,
+            names=" ".join(['"' + name + '"' for name in users]) if users else "",
+        )
+        proc = self.session.run(cmd, input=password + "\n" if password else None)
+        if proc.code == 0:
+            if isinstance(target, Key):
+                target.reload()
+        else:
+            raise ExecutionError(proc.output)
