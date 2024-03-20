@@ -1,0 +1,9 @@
+site_name: GPyG Documentation
+theme:
+  name: readthedocs
+  highlightjs: true
+nav:
+  - Home: "index.md"
+  - Operators:
+    - Basics: "operators/basics.md"
+    - Key Operations: "operators/keys.md"

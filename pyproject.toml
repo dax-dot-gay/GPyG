@@ -6,7 +6,6 @@ build-backend = "hatchling.build"
 name = "gpyg"
 version = "0.0.1"
 dependencies = [
-    "psutil",
     "typing-extensions",
     "pydantic"
 ]
@@ -20,6 +19,12 @@ license = {file = "LICENSE"}
 keywords = ["gpg", "pgp", "cryptography"]
 classifiers = [
   "Programming Language :: Python"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "mkdocs"
 ]
 
 [project.urls]
