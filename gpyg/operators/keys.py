@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 from pydantic import Field, PrivateAttr, computed_field
 from .common import BaseOperator
-from ..util import ExecutionError, ProcessSession
+from ..util import ExecutionError, ProcessSession, StatusInteractive, StatusLine
 from ..models import InfoLine, parse_infoline, KeyModel
 
 
@@ -554,107 +554,52 @@ class Key(KeyModel):
             raise ExecutionError(proc.output)
 
     @contextmanager
-    def edit(
-        self,
-        passphrase: str | None = None,
-        uid_select: str | Literal["*"] | None = "*",
-        key_select: str | Literal["*"] | None = "*",
-        run_as: str | None = None,
-    ):
-        """Creates a session for performing advanced edit tasks on a key (ie gpg --edit-key)
-
-        Args:
-            run_as (str | None, optional): An optional alternate UID/key to run as. Defaults to None.
-            passphrase (str | None, optional): Key passphrase, if required. Defaults to None.
-            uid_select (str | Literal[, optional): UID to select initially. Defaults to "*".
-            key_select (str | Literal[, optional): Subkey ID to select initially. Defaults to "*".
-
-        Yields:
-            KeyEditSession: The generated session, which provides a wrapper around the edit-key commands
-        """
-        yield KeyEditSession(
-            self,
-            run_as if run_as else self.fingerprint,
-            passphrase=passphrase,
-            uid_select=uid_select,
-            key_select=key_select,
-        )
+    def edit(self, passphrase: str | None = None, user: str | None = None):
+        with StatusInteractive(
+            self.session,
+            f"gpg --command-fd 0 --status-fd 1 -u {user if user else self.fingerprint} --pinentry-mode loopback --with-colons --batch --edit-key {self.fingerprint}",
+        ) as interactive:
+            editor = KeyEditor(
+                self, passphrase, user if user else self.fingerprint, interactive
+            )
+            yield editor
 
 
-class SigningMode(StrEnum):
-    EXPORTABLE = "sign"
-    LOCAL = "lsign"
-    NON_REVOCABLE = "nrsign"
-    TRUST = "tsign"
-
-
-class KeyEditSession:
-
+class KeyEditor:
     def __init__(
         self,
         key: Key,
-        run_as: str,
-        passphrase: str | None = None,
-        uid_select: str | Literal["*"] | None = "*",
-        key_select: str | Literal["*"] | None = "*",
+        passphrase: str | None,
+        user: str,
+        interactive: StatusInteractive,
     ):
         self.key = key
-        self.run_as = run_as
         self.passphrase = passphrase
-        self.uid_select = uid_select
-        self.key_select = key_select
+        self.user = user
+        self.interactive = interactive
+        self.wait_for_status("GET_LINE")
 
-    def execute(self, command: str, *inputs: str) -> str:
-        """Executes an arbitrary command with optional inputs.
+    def wait_for_status(self, code: str):
+        lines: list[StatusLine] = []
+        for line in self.interactive.readlines():
+            if line:
+                lines.append(line)
+                if line.is_status and line.code == code:
+                    return lines
 
-        Args:
-            command (str): The command to run
-            *inputs (str): Additional stdin lines to send
+    def list(self) -> list[InfoLine]:
+        self.interactive.writelines("list")
+        lines = self.wait_for_status("GET_LINE")
+        non_status = [line for line in lines if not line.is_status]
+        return [parse_infoline(line.content) for line in non_status]
 
-        Returns:
-            str: Command output, stripped of irrelevant info
-        """
-        return "\n".join(
-            [
-                line
-                for line in self.key.session.run(
-                    f"gpg -u {self.run_as} --batch --command-fd 0 --status-fd 1 --pinentry-mode loopback --edit-key {self.key.fingerprint}",
-                    input="\n".join(
-                        [
-                            f"uid {self.uid_select if self.uid_select else '0'}",
-                            f"key {self.key_select if self.key_select else '0'}",
-                            command,
-                            *inputs,
-                            "save",
-                        ]
-                    ),
-                ).output.split("[GNUPG:] GET_LINE keyedit.prompt\n[GNUPG:] GOT_IT\n")
-            ][3:-1]
-        )
-
-    def select_uid(self, value: str | Literal["*"] | None):
-        """Selects a new UID for this session
-
-        Args:
-            value (str | Literal['*'] | None): UID to select, or None for no UIDs
-        """
-        self.uid_select = value
-
-    def select_key(self, value: str | Literal["*"] | None):
-        """Selects a new subkey for this session
-
-        Args:
-            value (str | Literal['*'] | None): Subkey ID, or None for no selection
-        """
-        self.key_select = value
-
-    def select_run_as(self, value: str | None):
-        """Sets the user to run as
-
-        Args:
-            value (str | None): User/Fingerprint, or None to use the default
-        """
-        self.run_as = value
-
-    def sign(self, mode: SigningMode = SigningMode.EXPORTABLE):
-        return self.execute(mode, "y", self.passphrase, "")
+    def help(self) -> dict[str, str]:
+        self.interactive.writelines("help")
+        return {
+            line.content.split(maxsplit=1)[0]: line.content.split(maxsplit=1)[1]
+            for line in self.wait_for_status("GET_LINE")
+            if not line.is_status
+            and len(line.content) > 0
+            and not line.content.startswith("*")
+            and not line.content.startswith(" ")
+        }

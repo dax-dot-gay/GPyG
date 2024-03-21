@@ -12,16 +12,8 @@ with TemporaryDirectory(dir="tmp", delete=False) as tmpdir:
     gpg = GPG(homedir=tmpdir, kill_existing_agent=True)
     key = gpg.keys.generate_key("Bongus", passphrase="test")
     key_other = gpg.keys.generate_key("Bingus", passphrase="test2")
-    with ProcessSession() as session:
-        with StatusInteractive(
-            session,
-            f"gpg --command-fd 0 --status-fd 1 --homedir {tmpdir} -u {key_other.fingerprint} --pinentry-mode loopback --with-colons --edit-key {key.fingerprint}",
-        ) as interact:
-            for line in interact.readlines():
-                if line != None:
-                    print(line)
-                    if "keyedit.prompt" in line.content:
-                        interact.writelines("list")
+    with key.edit(passphrase="test") as editor:
+        print(editor.help())
 
     """gpg = GPG(homedir=tmpdir, kill_existing_agent=True)
     key = gpg.keys.generate_key("Bongus", passphrase="test")
