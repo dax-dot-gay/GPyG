@@ -17,3 +17,11 @@ Main class, handles operations on the entire keyring (fetching keys, generating 
 Wrapper for individual key functions, such as signing, encryption, etc. Returned by `KeyOperator()` methods.
 
 ::: gpyg.operators.Key
+
+---
+
+## `KeyEditSession()` - Wrapper for `gpg --edit-key`
+
+Wraps advanced key editing functions in a stateless interface. Returned by `Key().edit(...)`
+
+::: gpyg.operators.KeyEditSession

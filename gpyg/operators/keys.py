@@ -553,23 +553,82 @@ class Key(KeyModel):
             raise ExecutionError(proc.output)
 
     @contextmanager
-    def edit(self, passphrase: str | None = None):
-        yield KeyEditSession(self, passphrase)
+    def edit(
+        self,
+        passphrase: str | None = None,
+        uid_select: str | Literal["*"] | None = "*",
+        key_select: str | Literal["*"] | None = "*",
+    ):
+        """Creates a session for performing advanced edit tasks on a key (ie gpg --edit-key)
+
+        Args:
+            passphrase (str | None, optional): Key passphrase, if required. Defaults to None.
+            uid_select (str | Literal[, optional): UID to select initially. Defaults to "*".
+            key_select (str | Literal[, optional): Subkey ID to select initially. Defaults to "*".
+
+        Yields:
+            KeyEditSession: The generated session, which provides a wrapper around the edit-key commands
+        """
+        yield KeyEditSession(
+            self, passphrase=passphrase, uid_select=uid_select, key_select=key_select
+        )
 
 
 class KeyEditSession:
-    def __init__(self, key: Key, passphrase: str | None):
+
+    def __init__(
+        self,
+        key: Key,
+        passphrase: str | None = None,
+        uid_select: str | Literal["*"] | None = "*",
+        key_select: str | Literal["*"] | None = "*",
+    ):
         self.key = key
         self.passphrase = passphrase
+        self.uid_select = uid_select
+        self.key_select = key_select
 
-    def execute(self, command: str, *inputs: str):
+    def execute(self, command: str, *inputs: str) -> str:
+        """Executes an arbitrary command with optional inputs.
+
+        Args:
+            command (str): The command to run
+            *inputs (str): Additional stdin lines to send
+
+        Returns:
+            str: Command output, stripped of irrelevant info
+        """
         return "\n".join(
             [
                 line
                 for line in self.key.session.run(
                     f"gpg --batch --command-fd 0 --status-fd 1 --pinentry-mode loopback --with-colons --edit-key {self.key.fingerprint}",
-                    input="\n".join([command, *inputs, "quit"]),
+                    input="\n".join(
+                        [
+                            f"uid {self.uid_select if self.uid_select else '0'}",
+                            f"key {self.key_select if self.key_select else '0'}",
+                            command,
+                            *inputs,
+                            "quit",
+                        ]
+                    ),
                 ).output.splitlines()
                 if not line.startswith("[GNUPG:]")
             ]
         )
+
+    def select_uid(self, value: str | Literal["*"] | None):
+        """Selects a new UID for this session
+
+        Args:
+            value (str | Literal['*'] | None): UID to select, or None for no UIDs
+        """
+        self.uid_select = value
+
+    def select_key(self, value: str | Literal["*"] | None):
+        """Selects a new subkey for this session
+
+        Args:
+            value (str | Literal['*'] | None): Subkey ID, or None for no selection
+        """
+        self.key_select = value
