@@ -19,7 +19,7 @@ class KeyModel(BaseModel):
     serial_number: str | None = None
     fingerprint: str | None = None
     keygrip: str | None = None
-    signatures: list[SignatureInfo] = []
+    all_signatures: list[SignatureInfo] = []
     user_ids: list[UserIDInfo] = []
     internal_subkeys: list["KeyModel"] = Field(exclude=True, default_factory=list)
 
@@ -28,6 +28,38 @@ class KeyModel(BaseModel):
         if self.is_subkey:
             return None
         return self.internal_subkeys
+
+    @computed_field
+    def signatures(self) -> list[SignatureInfo]:
+        return [i for i in self.all_signatures if not i.is_revocation]
+
+    @computed_field
+    def revocation_signatures(self) -> list[SignatureInfo]:
+        return [i for i in self.all_signatures if i.is_revocation]
+
+    @computed_field
+    def valid_signatures(self) -> list[SignatureInfo]:
+        revocations = [
+            (i, self.all_signatures[i])
+            for i in range(len(self.all_signatures))
+            if self.all_signatures[i].is_revocation
+        ]
+        result = [
+            (i, self.all_signatures[i])
+            for i in range(len(self.all_signatures))
+            if not self.all_signatures[i].is_revocation
+        ]
+        for rev_index, rev in revocations:
+            result = [
+                (index, sig)
+                for index, sig in result
+                if (
+                    sig.signer_fingerprint != rev.signer_fingerprint
+                    or sig.key_id != rev.key_id
+                )
+                or sig.creation_date > rev.creation_date
+            ]
+        return [i[1] for i in result]
 
     @staticmethod
     def get_subkeys(
@@ -75,7 +107,7 @@ class KeyModel(BaseModel):
                             if line.record_type == InfoRecord.PUBLIC_KEY
                             else "secret"
                         ),
-                        **line.as_dict(),
+                        **line.model_dump(),
                     )
                     if line.record_type
                     in [InfoRecord.PUBLIC_KEY, InfoRecord.SECRET_KEY]
@@ -86,7 +118,7 @@ class KeyModel(BaseModel):
                             else "secret"
                         ),
                         is_subkey=True,
-                        **line.as_dict(),
+                        **line.model_dump(),
                     )
                 )
             elif (
@@ -100,7 +132,9 @@ class KeyModel(BaseModel):
             elif line.record_type == InfoRecord.USER_ID and context:
                 context.user_ids.append(line)
             elif line.record_type == InfoRecord.SIGNATURE and context:
-                context.signatures.append(line)
+                context.all_signatures.append(line)
+            elif line.record_type == InfoRecord.REVOCATION_SIGNATURE and context:
+                context.all_signatures.append(line)
 
         if context:
             initial_sigs = [

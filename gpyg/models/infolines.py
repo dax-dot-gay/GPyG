@@ -2,7 +2,7 @@ import datetime
 from enum import IntEnum, StrEnum
 from typing import Any, Literal
 from typing_extensions import Literal
-from pydantic import BaseModel, model_serializer
+from pydantic import BaseModel, computed_field, model_serializer
 from pydantic_core import to_jsonable_python
 
 
@@ -113,43 +113,27 @@ class InfoLine(BaseModel):
     def fields(self) -> list[str | None]:
         return [self.field(i) for i in range(2, 22)]
 
-    def as_dict(self) -> dict[str, Any]:
-        return {"record_type": self.record_type, "field_array": self.field_array}
-
-    def as_raw(self) -> dict[str, Any]:
-        return {"record_type": self.record_type, "field_array": self.field_array}
-
-    def as_json(self):
-        return to_jsonable_python(self.as_dict())
-
-    @model_serializer(when_used="always")
-    def _serialize_raw(self) -> dict:
-        return self.as_raw()
-
-    @model_serializer(when_used="json")
-    def _serialize(self) -> dict:
-        return self.as_json()
-
 
 # pub, sub
 class KeyInfo(InfoLine):
-    @property
+
+    @computed_field
     def validity(self) -> FieldValidity | None:
         return FieldValidity(self.field(2)) if self.field(2) else None
 
-    @property
+    @computed_field
     def length(self) -> int:
         return int(self.field(3))
 
-    @property
+    @computed_field
     def algorithm(self) -> int:
         return int(self.field(4))
 
-    @property
+    @computed_field
     def key_id(self) -> str:
         return self.field(5)
 
-    @property
+    @computed_field
     def creation_date(self) -> datetime.datetime | None:
         value = self.field(6)
         if value:
@@ -159,7 +143,7 @@ class KeyInfo(InfoLine):
                 return datetime.datetime.fromtimestamp(float(value))
         return None
 
-    @property
+    @computed_field
     def expiration_date(self) -> datetime.datetime | None:
         value = self.field(7)
         if value:
@@ -169,11 +153,11 @@ class KeyInfo(InfoLine):
                 return datetime.datetime.fromtimestamp(float(value))
         return None
 
-    @property
+    @computed_field
     def owner_trust(self) -> str | None:
         return self.field(9)
 
-    @property
+    @computed_field
     def capabilities(self) -> list[KeyCapability]:
         value = self.field(12)
         if value == None:
@@ -181,7 +165,7 @@ class KeyInfo(InfoLine):
 
         return [KeyCapability(i) for i in value if i.lower() == i]
 
-    @property
+    @computed_field
     def overall_capabilities(self) -> list[KeyCapability]:
         value = self.field(12)
         if value == None:
@@ -189,76 +173,43 @@ class KeyInfo(InfoLine):
 
         return [KeyCapability(i.lower()) for i in value if i.lower() != i]
 
-    @property
+    @computed_field
     def curve_name(self) -> str | None:
         return self.field(17)
-
-    def as_dict(self) -> dict[str, Any]:
-        return dict(
-            record_type=self.record_type,
-            validity=self.validity,
-            length=self.length,
-            algorithm=self.algorithm,
-            key_id=self.key_id,
-            creation_date=self.creation_date,
-            expiration_date=self.expiration_date,
-            owner_trust=self.owner_trust,
-            capabilities=self.capabilities,
-            overall_capabilities=self.overall_capabilities,
-            curve_name=self.curve_name,
-        )
 
 
 # fpr, fp2
 class FingerprintInfo(InfoLine):
-    @property
+
+    @computed_field
     def fingerprint(self) -> str:
         return self.field(10)
-
-    def as_dict(self) -> dict[str, Any]:
-        return dict(record_type=self.record_type, fingerprint=self.fingerprint)
 
 
 # grp
 class KeygripInfo(InfoLine):
-    @property
+
+    @computed_field
     def keygrip(self) -> str:
         return self.field(10)
-
-    def as_dict(self) -> dict[str, Any]:
-        return dict(record_type=self.record_type, keygrip=self.keygrip)
 
 
 # sec, ssb
 class SecretKeyInfo(KeyInfo):
-    @property
+
+    @computed_field
     def serial_number(self) -> str | None:
         return self.field(15)
-
-    def as_dict(self) -> dict[str, Any]:
-        return dict(
-            record_type=self.record_type,
-            validity=self.validity,
-            length=self.length,
-            algorithm=self.algorithm,
-            key_id=self.key_id,
-            creation_date=self.creation_date,
-            expiration_date=self.expiration_date,
-            owner_trust=self.owner_trust,
-            capabilities=self.capabilities,
-            overall_capabilities=self.overall_capabilities,
-            curve_name=self.curve_name,
-            serial_number=self.serial_number,
-        )
 
 
 # uid
 class UserIDInfo(InfoLine):
-    @property
+
+    @computed_field
     def validity(self) -> FieldValidity | None:
         return FieldValidity(self.field(2)) if self.field(2) else None
 
-    @property
+    @computed_field
     def creation_date(self) -> datetime.datetime | None:
         value = self.field(6)
         if value:
@@ -268,7 +219,7 @@ class UserIDInfo(InfoLine):
                 return datetime.datetime.fromtimestamp(float(value))
         return None
 
-    @property
+    @computed_field
     def expiration_date(self) -> datetime.datetime | None:
         value = self.field(7)
         if value:
@@ -278,33 +229,23 @@ class UserIDInfo(InfoLine):
                 return datetime.datetime.fromtimestamp(float(value))
         return None
 
-    @property
+    @computed_field
     def uid_hash(self) -> str | None:
         return self.field(8)
 
-    @property
+    @computed_field
     def uid(self) -> str:
         return self.field(10)
-
-    def as_dict(self) -> dict[str, Any]:
-        return dict(
-            record_type=self.record_type,
-            validity=self.validity,
-            creation_date=self.creation_date,
-            expiration_date=self.expiration_date,
-            uid_hash=self.uid_hash,
-            uid=self.uid,
-        )
 
 
 # sig, rev
 class SignatureInfo(InfoLine):
 
-    @property
+    @computed_field
     def is_revocation(self) -> bool:
         return self.record_type == InfoRecord.REVOCATION_SIGNATURE
 
-    @property
+    @computed_field
     def validity(self) -> SignatureValidity | None:
         value = self.field(2)
         if value and len(value) > 0:
@@ -312,15 +253,15 @@ class SignatureInfo(InfoLine):
         else:
             return None
 
-    @property
+    @computed_field
     def algorithm(self) -> int:
         return int(self.field(4))
 
-    @property
+    @computed_field
     def key_id(self) -> str:
         return self.field(5)
 
-    @property
+    @computed_field
     def creation_date(self) -> datetime.datetime | None:
         value = self.field(6)
         if value:
@@ -330,7 +271,7 @@ class SignatureInfo(InfoLine):
                 return datetime.datetime.fromtimestamp(float(value))
         return None
 
-    @property
+    @computed_field
     def expiration_date(self) -> datetime.datetime | None:
         value = self.field(7)
         if value:
@@ -340,74 +281,49 @@ class SignatureInfo(InfoLine):
                 return datetime.datetime.fromtimestamp(float(value))
         return None
 
-    @property
+    @computed_field
     def uid(self) -> str:
         return self.field(10)
 
-    @property
+    @computed_field
     def signature_class(self) -> str:
         return self.field(11)
 
-    @property
+    @computed_field
     def signer_fingerprint(self) -> str:
         return self.field(13)
-
-    def as_dict(self) -> dict[str, Any]:
-        return dict(
-            record_type=self.record_type,
-            is_revocation=self.is_revocation,
-            validity=self.validity,
-            algorithm=self.algorithm,
-            key_id=self.key_id,
-            creation_date=self.creation_date,
-            expiration_date=self.expiration_date,
-            uid=self.uid,
-            signature_class=self.signature_class,
-            signer_fingerprint=self.signer_fingerprint,
-        )
 
 
 # tru
 class TrustInfo(InfoLine):
-    @property
+
+    @computed_field
     def staleness(self) -> None | StaleTrustReason:
         return StaleTrustReason(self.field(2)) if self.field(2) else None
 
-    @property
+    @computed_field
     def trust_model(self) -> TrustModel:
         return TrustModel(int(self.field(3)))
 
-    @property
+    @computed_field
     def creation_date(self) -> datetime.datetime:
         return datetime.datetime.fromtimestamp(float(self.field(4)))
 
-    @property
+    @computed_field
     def expiration_date(self) -> datetime.datetime:
         return datetime.datetime.fromtimestamp(float(self.field(5)))
 
-    @property
+    @computed_field
     def marginals_needed(self) -> int:
         return int(self.field(6))
 
-    @property
+    @computed_field
     def completes_needed(self) -> int:
         return int(self.field(7))
 
-    @property
+    @computed_field
     def max_cert_depth(self) -> int:
         return int(self.field(8))
-
-    def as_dict(self) -> dict[str, Any]:
-        return dict(
-            record_type=self.record_type,
-            staleness=self.staleness,
-            trust_model=self.trust_model,
-            creation_date=self.creation_date,
-            expiration_date=self.expiration_date,
-            marginals_needed=self.marginals_needed,
-            completes_needed=self.completes_needed,
-            max_cert_depth=self.max_cert_depth,
-        )
 
 
 def parse_infoline(line: str) -> InfoLine:
