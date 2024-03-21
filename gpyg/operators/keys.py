@@ -347,10 +347,19 @@ class Key(KeyModel):
         self,
         password: str | None = None,
         algorithm: str | None = None,
-        usage: list[Literal["sign", "auth", "encr", "cert"]] | None = None,
+        usage: list[Literal["sign", "auth", "encr"]] | None = None,
         expiration: datetime | timedelta | int | str | None = None,
         key_passphrase: str | None = None,
     ):
+        """Adds a subkey to the selected Key, and refreshes cached data.
+
+        Args:
+            password (str | None, optional): Primary key passphrase. Defaults to None.
+            algorithm (str | None, optional): Algorithm to use. Defaults to None.
+            usage (list[sign | auth | encr] | None, optional): List of usages, or None for the default. Defaults to None.
+            expiration (datetime | timedelta | int | str | None, optional): Expiration date, or None for no expiration. Defaults to None.
+            key_passphrase (str | None, optional): Passphrase for the new key. Defaults to None.
+        """
         if isinstance(expiration, datetime):
             expire_str = expiration.isoformat()
         elif isinstance(expiration, timedelta):
@@ -375,5 +384,7 @@ class Key(KeyModel):
             )
             + "\n",
         )
-        print(proc.output)
-        self.reload()
+        if proc.code == 0:
+            self.reload()
+        else:
+            raise ExecutionError(proc.output)
