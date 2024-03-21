@@ -297,8 +297,13 @@ class UserIDInfo(InfoLine):
         )
 
 
-# sig
+# sig, rev
 class SignatureInfo(InfoLine):
+
+    @property
+    def is_revocation(self) -> bool:
+        return self.record_type == InfoRecord.REVOCATION_SIGNATURE
+
     @property
     def validity(self) -> SignatureValidity | None:
         value = self.field(2)
@@ -350,6 +355,7 @@ class SignatureInfo(InfoLine):
     def as_dict(self) -> dict[str, Any]:
         return dict(
             record_type=self.record_type,
+            is_revocation=self.is_revocation,
             validity=self.validity,
             algorithm=self.algorithm,
             key_id=self.key_id,
@@ -429,6 +435,9 @@ def parse_infoline(line: str) -> InfoLine:
             return UserIDInfo.from_line(line)
 
         case InfoRecord.SIGNATURE:
+            return SignatureInfo.from_line(line)
+
+        case InfoRecord.REVOCATION_SIGNATURE:
             return SignatureInfo.from_line(line)
 
         case InfoRecord.TRUST_INFO:

@@ -263,7 +263,7 @@ class Key(KeyModel):
         expiration: date | None = None,
         subkeys: list[str] | Literal["*"] | None = None,
         password: str | None = None,
-    ) -> None:
+    ) -> "Key":
         """Sets the expiration date of the current Key
 
         Args:
@@ -273,6 +273,9 @@ class Key(KeyModel):
 
         Raises:
             ExecutionError: Raised if the operation fails
+
+        Returns:
+            Key: Updated reference to self
         """
         cmd = "gpg --batch --pinentry-mode loopback --passphrase-fd 0 --quick-set-expire {fingerprint} {expiry} {targets}".format(
             fingerprint=self.fingerprint,
@@ -282,8 +285,7 @@ class Key(KeyModel):
 
         result = self.session.run(cmd, input=password + "\n" if password else None)
         if result.code == 0:
-            self.reload()
-            return
+            return self.reload()
         raise ExecutionError(result.output)
 
     def is_protected(self) -> bool:
@@ -323,7 +325,7 @@ class Key(KeyModel):
         password: str | None = None,
         exportable: bool = True,
         force: bool = False,
-    ):
+    ) -> "Key":
         """Signs another key using the current key
 
         Args:
@@ -335,6 +337,9 @@ class Key(KeyModel):
 
         Raises:
             ExecutionError: Raised if the operation fails.
+
+        Returns:
+            Key: Reference to the targeted Key
         """
         if isinstance(target, Key):
             parsed_target = target.fingerprint
@@ -351,7 +356,9 @@ class Key(KeyModel):
         proc = self.session.run(cmd, input=password + "\n" if password else None)
         if proc.code == 0:
             if isinstance(target, Key):
-                target.reload()
+                return target.reload()
+            else:
+                return self.operator.get_key(target)
         else:
             raise ExecutionError(proc.output)
 
@@ -362,7 +369,7 @@ class Key(KeyModel):
         usage: list[Literal["sign", "auth", "encr"]] | None = None,
         expiration: datetime | timedelta | int | str | None = None,
         key_passphrase: str | None = None,
-    ):
+    ) -> "Key":
         """Adds a subkey to the selected Key, and refreshes cached data.
 
         Args:
@@ -371,6 +378,9 @@ class Key(KeyModel):
             usage (list[sign | auth | encr] | None, optional): List of usages, or None for the default. Defaults to None.
             expiration (datetime | timedelta | int | str | None, optional): Expiration date, or None for no expiration. Defaults to None.
             key_passphrase (str | None, optional): Passphrase for the new key. Defaults to None.
+
+        Returns:
+            Key: Updated reference to self
         """
         if self.is_subkey:
             raise ValueError("Cannot add a subkey to a subkey.")
@@ -400,6 +410,119 @@ class Key(KeyModel):
             + "\n",
         )
         if proc.code == 0:
-            self.reload()
+            return self.reload()
+        else:
+            raise ExecutionError(proc.output)
+
+    def add_user_id(
+        self,
+        uid: str = None,
+        name: str = None,
+        email: str = None,
+        comment: str = None,
+        passphrase: str = None,
+    ) -> "Key":
+        """Add a user ID to the current Key
+
+        Args:
+            uid (str, optional): Full UID string (not checked for validity). Defaults to None.
+            name (str, optional): Name part. Defaults to None.
+            email (str, optional): Email part. Defaults to None.
+            comment (str, optional): Comment part. Defaults to None.
+            passphrase (str, optional): Key passphrase. Defaults to None.
+
+        Raises:
+            ValueError: If both UID and any parts are specified
+            ValueError: If neither UID nor Name is specified
+            ExecutionError: If the operation fails
+
+        Returns:
+            Key: An updated reference to the Key
+        """
+        if uid and any([name, email, comment]):
+            raise ValueError("Cannot specify a full UID and parts at the same time.")
+        if not uid and not name:
+            raise ValueError("Must at least specify UID or Name.")
+
+        if uid:
+            parsed = uid
+        else:
+            parsed = " ".join(
+                [
+                    i
+                    for i in [
+                        name,
+                        f"<{email}>" if email else None,
+                        f"({comment})" if comment else None,
+                    ]
+                    if i != None
+                ]
+            )
+
+        cmd = f"gpg --batch --pinentry-mode loopback --passphrase-fd 0 --quick-add-uid {self.fingerprint} '{parsed}'"
+        proc = self.session.run(
+            cmd,
+            input=passphrase + "\n" if passphrase else None,
+        )
+        if proc.code == 0:
+            return self.reload()
+        else:
+            raise ExecutionError(proc.output)
+
+    def revoke_uid(self, uid: str, passphrase: str = None) -> "Key":
+        """Revokes a given UID on the current Key
+
+        Args:
+            uid (str): UID to revoke (full string)
+            passphrase (str, optional): Key passphrase, if needed. Defaults to None.
+
+        Raises:
+            ExecutionError: If command execution fails
+
+        Returns:
+            Key: Reference to updated key
+        """
+        cmd = f"gpg --batch --pinentry-mode loopback --passphrase-fd 0 --quick-revoke-uid {self.fingerprint} '{uid}'"
+        proc = self.session.run(
+            cmd,
+            input=passphrase + "\n" if passphrase else None,
+        )
+
+        if proc.code == 0:
+            return self.reload()
+        else:
+            raise ExecutionError(proc.output)
+
+    def revoke_signature(
+        self,
+        signer: "Key | str",
+        users: list[str] | None = None,
+        passphrase: str = None,
+    ) -> "Key":
+        """Revokes a signature on the current Key generated by Signer
+
+        Args:
+            signer (Key | str): The Key (or its fingerprint) that created the signature
+            users (list[str] | None, optional): List of users to apply to. If None, applies to all. Defaults to None.
+            passphrase (str, optional): Key passphrase, if needed. Defaults to None.
+
+        Raises:
+            ExecutionError: If command execution fails
+
+        Returns:
+            Key: Reference to updated key
+        """
+        cmd = "gpg --batch --pinentry-mode loopback --passphrase-fd 0 --quick-revoke-sig {fingerprint} {signer} {names}".format(
+            fingerprint=self.fingerprint,
+            signer=signer.fingerprint if isinstance(signer, Key) else signer,
+            names=" ".join(users) if users else "",
+        ).strip()
+        proc = self.session.run(
+            cmd,
+            input=passphrase + "\n" if passphrase else None,
+        )
+        print(proc.output)
+        if proc.code == 0:
+            return self.reload()
         else:
             raise ExecutionError(proc.output)
