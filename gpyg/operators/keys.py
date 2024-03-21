@@ -1,5 +1,6 @@
+from contextlib import contextmanager
 from datetime import date, datetime, timedelta
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import Field, PrivateAttr, computed_field
 from .common import BaseOperator
@@ -550,3 +551,19 @@ class Key(KeyModel):
             return self.reload()
         else:
             raise ExecutionError(proc.output)
+
+    @contextmanager
+    def edit(self, passphrase: str | None = None):
+        yield KeyEditSession(self, passphrase)
+
+
+class KeyEditSession:
+    def __init__(self, key: Key, passphrase: str | None):
+        self.key = key
+        self.passphrase = passphrase
+
+    def execute(self, command: str, *inputs: str):
+        return self.key.session.run(
+            f"gpg --batch --command-fd 0 --status-fd 1 --pinentry-mode loopback --with-colons --edit-key {self.key.fingerprint}",
+            input="\n".join([command, *inputs, "quit"]),
+        ).output

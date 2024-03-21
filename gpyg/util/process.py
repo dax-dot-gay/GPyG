@@ -5,6 +5,7 @@ import shlex
 import subprocess
 import threading
 import time
+from traceback import print_exc
 from typing import Any, Literal
 
 class Process:
@@ -24,7 +25,9 @@ class Process:
         self.code: int | None = None
         self.decode = decode_output
         if launch_thread:
-            self.listener = threading.Thread(target=self.listen, name=f"listener-{self.command}")
+            self.listener = threading.Thread(
+                target=self.listen, name=f"listener-{self.command}", daemon=True
+            )
             self.listener.start()
         else:
             self.listener = None
@@ -112,6 +115,7 @@ class Process:
         lines = []
         for line in self.lines(seek=seek):
             lines.append(line)
+            print(line)
             match match_mode:
                 case "contains":
                     if pattern in line:
