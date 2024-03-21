@@ -521,7 +521,31 @@ class Key(KeyModel):
             cmd,
             input=passphrase + "\n" if passphrase else None,
         )
-        print(proc.output)
+        if proc.code == 0:
+            return self.reload()
+        else:
+            raise ExecutionError(proc.output)
+
+    def set_primary_uid(self, uid: str, passphrase: str | None = None) -> "Key":
+        """Set the primary UID of the current Key
+
+        Args:
+            uid (str): User ID to set as primary
+            passphrase (str | None, optional): Key passphrase, if required. Defaults to None.
+
+        Raises:
+            ExecutionError: If command execution fails
+
+        Returns:
+            Key: An updated reference to the Key
+        """
+        cmd = "gpg --batch --pinentry-mode loopback --passphrase-fd 0 --quick-set-primary-uid '{fingerprint}' '{uid}'".format(
+            fingerprint=self.fingerprint, uid=uid
+        ).strip()
+        proc = self.session.run(
+            cmd,
+            input=passphrase + "\n" if passphrase else None,
+        )
         if proc.code == 0:
             return self.reload()
         else:

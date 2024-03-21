@@ -112,3 +112,12 @@ def test_revoke_sig(environment):
     assert len(keys[0].valid_signatures) == 2
     keys[0].revoke_signature(keys[1], passphrase="test-psk-1")
     assert len(keys[0].valid_signatures) == 1
+
+
+def test_set_primary_uid(environment):
+    key = environment.keys.list_keys()[3]
+
+    key.add_user_id(uid="New Primary")
+    assert len(key.user_ids) == 2
+    key.set_primary_uid("New Primary")
+    assert key.user_ids[0].uid == "New Primary"
