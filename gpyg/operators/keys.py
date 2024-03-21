@@ -563,7 +563,13 @@ class KeyEditSession:
         self.passphrase = passphrase
 
     def execute(self, command: str, *inputs: str):
-        return self.key.session.run(
-            f"gpg --batch --command-fd 0 --status-fd 1 --pinentry-mode loopback --with-colons --edit-key {self.key.fingerprint}",
-            input="\n".join([command, *inputs, "quit"]),
-        ).output
+        return "\n".join(
+            [
+                line
+                for line in self.key.session.run(
+                    f"gpg --batch --command-fd 0 --status-fd 1 --pinentry-mode loopback --with-colons --edit-key {self.key.fingerprint}",
+                    input="\n".join([command, *inputs, "quit"]),
+                ).output.splitlines()
+                if not line.startswith("[GNUPG:]")
+            ]
+        )
