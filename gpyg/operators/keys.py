@@ -6,7 +6,7 @@ from typing import Any, Literal
 from pydantic import Field, PrivateAttr, computed_field
 from .common import BaseOperator
 from ..util import ExecutionError, ProcessSession, StatusInteractive, StatusLine
-from ..models import InfoLine, parse_infoline, KeyModel
+from ..models import InfoLine, parse_infoline, KeyModel, StatusCodes, SigningModes
 
 
 class KeyOperator(BaseOperator):
@@ -557,7 +557,7 @@ class Key(KeyModel):
     def edit(self, passphrase: str | None = None, user: str | None = None):
         with StatusInteractive(
             self.session,
-            f"gpg --command-fd 0 --status-fd 1 -u {user if user else self.fingerprint} --pinentry-mode loopback --with-colons --batch --edit-key {self.fingerprint}",
+            f"gpg --command-fd 0 --status-fd 1 -u {user if user else self.fingerprint} --with-sig-list --debug-level guru --pinentry-mode loopback --yes --with-colons --expert --no-tty --edit-key {self.fingerprint}",
         ) as interactive:
             editor = KeyEditor(
                 self, passphrase, user if user else self.fingerprint, interactive
@@ -577,29 +577,51 @@ class KeyEditor:
         self.passphrase = passphrase
         self.user = user
         self.interactive = interactive
-        self.wait_for_status("GET_LINE")
+        self.wait_for_status(StatusCodes.GET_LINE)
 
-    def wait_for_status(self, code: str):
+    def wait_for_status(self, *code: str):
         lines: list[StatusLine] = []
         for line in self.interactive.readlines():
             if line:
                 lines.append(line)
-                if line.is_status and line.code == code:
+                if line.is_status and (len(code) == 0 or line.code in code):
                     return lines
 
     def list(self) -> list[InfoLine]:
         self.interactive.writelines("list")
-        lines = self.wait_for_status("GET_LINE")
+        lines = self.wait_for_status(StatusCodes.GET_LINE)
         non_status = [line for line in lines if not line.is_status]
         return [parse_infoline(line.content) for line in non_status]
 
-    def help(self) -> dict[str, str]:
-        self.interactive.writelines("help")
-        return {
-            line.content.split(maxsplit=1)[0]: line.content.split(maxsplit=1)[1]
-            for line in self.wait_for_status("GET_LINE")
-            if not line.is_status
-            and len(line.content) > 0
-            and not line.content.startswith("*")
-            and not line.content.startswith(" ")
-        }
+    def quit(self):
+        self.interactive.writelines("quit")
+
+    def save(self):
+        self.interactive.writelines("save")
+
+    def set_uid(self, uid: str):
+        self.interactive.writelines(f"uid {uid}")
+        self.wait_for_status(StatusCodes.GET_LINE)
+
+    def set_key(self, key: str):
+        self.interactive.writelines(f"key {key}")
+        self.wait_for_status(StatusCodes.GET_LINE)
+
+    def sign(self, mode: SigningModes = SigningModes.EXPORTABLE) -> bool:
+        self.interactive.writelines(
+            str(mode if mode in SigningModes else SigningModes.EXPORTABLE)
+        )
+        lines = self.wait_for_status(StatusCodes.GET_LINE, StatusCodes.GET_BOOL)
+        if lines[-1].code == StatusCodes.GET_LINE:
+            return False
+        self.interactive.writelines("y")
+        lines = self.wait_for_status(StatusCodes.GET_LINE, StatusCodes.GET_HIDDEN)
+        if lines[-1].code == StatusCodes.GET_LINE:
+            return False
+
+        if self.passphrase:
+            self.interactive.writelines(self.passphrase)
+        else:
+            self.interactive.writelines("")
+
+        lines = self.wait_for_status(StatusCodes.GET_LINE, StatusCodes.GET_HIDDEN)
