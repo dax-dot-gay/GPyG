@@ -1,6 +1,33 @@
+from collections.abc import Generator
 import subprocess
 from tempfile import NamedTemporaryFile
+from typing import Any
+
+from pydantic import BaseModel, computed_field
 from .process import ProcessSession
+
+
+class StatusLine(BaseModel):
+    content: str
+    code: str | None = None
+    arguments: list[str] | None = None
+
+    @computed_field
+    @property
+    def is_status(self) -> bool:
+        return self.code != None
+
+    @classmethod
+    def from_line(cls, line: bytes) -> "StatusLine":
+        decoded = line.decode().rstrip("\n")
+        if decoded.startswith("[GNUPG:]"):
+            return StatusLine(
+                content=decoded,
+                code=decoded.split(" ")[1].strip(),
+                arguments=decoded.split(" ")[2:],
+            )
+        else:
+            return StatusLine(content=decoded)
 
 
 class Interactive:
@@ -60,7 +87,7 @@ class Interactive:
             return None
         return line
 
-    def readlines(self, yield_empty: bool = True):
+    def readlines(self, yield_empty: bool = True) -> Generator[bytes | None, Any, Any]:
         while True:
             try:
                 line = self.readline()
@@ -84,3 +111,23 @@ class Interactive:
             + b"\n"
         )
         self.write(concatenated)
+
+
+class StatusInteractive(Interactive):
+    def readline(self) -> StatusLine | None:
+        line = super().readline()
+        return StatusLine.from_line(line) if line else None
+
+    def __enter__(self) -> "StatusInteractive":
+        return super().__enter__()
+
+    def readlines(
+        self, yield_empty: bool = True
+    ) -> Generator[StatusLine | None, Any, Any]:
+        while True:
+            try:
+                line = self.readline()
+                if line != None or yield_empty:
+                    yield line
+            except:
+                break

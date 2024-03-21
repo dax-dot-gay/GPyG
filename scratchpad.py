@@ -2,7 +2,7 @@ import os
 import shutil
 from tempfile import TemporaryDirectory
 import time
-from gpyg import GPG, Interactive, ProcessSession
+from gpyg import GPG, StatusInteractive, ProcessSession
 
 if os.path.exists("./tmp"):
     shutil.rmtree("./tmp")
@@ -13,14 +13,14 @@ with TemporaryDirectory(dir="tmp", delete=False) as tmpdir:
     key = gpg.keys.generate_key("Bongus", passphrase="test")
     key_other = gpg.keys.generate_key("Bingus", passphrase="test2")
     with ProcessSession() as session:
-        with Interactive(
+        with StatusInteractive(
             session,
             f"gpg --command-fd 0 --status-fd 1 --homedir {tmpdir} -u {key_other.fingerprint} --pinentry-mode loopback --with-colons --edit-key {key.fingerprint}",
         ) as interact:
             for line in interact.readlines():
                 if line != None:
                     print(line)
-                    if b"keyedit.prompt" in line:
+                    if "keyedit.prompt" in line.content:
                         interact.writelines("list")
 
     """gpg = GPG(homedir=tmpdir, kill_existing_agent=True)
