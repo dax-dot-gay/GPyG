@@ -68,3 +68,9 @@ def test_sign_key(environment):
     keys = environment.keys.list_keys()
     keys[0].sign_key(keys[1], password="test-psk-0")
     assert len(keys[1].signatures) == 2
+
+
+def test_subkeys_wrapped(environment):
+    result = environment.keys.list_keys(key_type="secret")
+    for key in result:
+        assert key.subkeys[0].operator != None

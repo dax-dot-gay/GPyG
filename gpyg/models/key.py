@@ -1,28 +1,10 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, computed_field
 from .infolines import *
 from datetime import datetime
 
 
-class SubkeyModel(BaseModel):
-    type: Literal["public", "secret"]
-    validity: FieldValidity
-    length: int
-    algorithm: int
-    key_id: str
-    creation_date: datetime | None
-    expiration_date: datetime | None
-    owner_trust: str | None
-    capabilities: list[KeyCapability]
-    overall_capabilities: list[KeyCapability]
-    curve_name: str | None
-    serial_number: str | None = None
-    fingerprint: str | None = None
-    keygrip: str | None = None
-    signatures: list[SignatureInfo] = []
-    user_ids: list[UserIDInfo] = []
-
-
 class KeyModel(BaseModel):
+    is_subkey: bool = False
     type: Literal["public", "secret"]
     validity: FieldValidity
     length: int
@@ -39,21 +21,29 @@ class KeyModel(BaseModel):
     keygrip: str | None = None
     signatures: list[SignatureInfo] = []
     user_ids: list[UserIDInfo] = []
-    subkeys: list[SubkeyModel] = []
+    internal_subkeys: list["KeyModel"] = Field(exclude=True, default_factory=list)
+
+    @computed_field
+    def subkeys(self) -> list["KeyModel"] | None:
+        if self.is_subkey:
+            return None
+        return self.internal_subkeys
 
     @staticmethod
     def get_subkeys(
         key: "KeyModel", subkey_map: dict[str, list["KeyModel"]]
     ) -> list["KeyModel"]:
         if key.fingerprint and key.fingerprint in subkey_map.keys():
-            key.subkeys = subkey_map[key.fingerprint]
-            return key.subkeys
+            for subkey in subkey_map[key.fingerprint]:
+                subkey.internal_subkeys = KeyModel.get_subkeys(subkey, subkey_map)
+                key.internal_subkeys.append(subkey)
+            return key.internal_subkeys
         else:
             return []
 
     @classmethod
     def from_infolines(cls, lines: list[InfoLine]) -> list["KeyModel"]:
-        key_mapping: dict[str, list[KeyModel | SubkeyModel]] = {"root": []}
+        key_mapping: dict[str, list[KeyModel]] = {"root": []}
         context: KeyModel = None
         for line in lines:
             if line.record_type in [
@@ -89,12 +79,13 @@ class KeyModel(BaseModel):
                     )
                     if line.record_type
                     in [InfoRecord.PUBLIC_KEY, InfoRecord.SECRET_KEY]
-                    else SubkeyModel(
+                    else KeyModel(
                         type=(
                             "public"
                             if line.record_type == InfoRecord.SUBKEY
                             else "secret"
                         ),
+                        is_subkey=True,
                         **line.as_dict(),
                     )
                 )
@@ -129,6 +120,6 @@ class KeyModel(BaseModel):
 
         results = key_mapping["root"][:]
         for key in results:
-            key.subkeys = KeyModel.get_subkeys(key, key_mapping)
+            key.internal_subkeys = KeyModel.get_subkeys(key, key_mapping)
 
         return results

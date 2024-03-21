@@ -1,7 +1,7 @@
 from datetime import date, datetime, timedelta
 from typing import Literal
 
-from pydantic import Field, PrivateAttr
+from pydantic import Field, PrivateAttr, computed_field
 from .common import BaseOperator
 from ..util import ExecutionError, ProcessSession
 from ..models import InfoLine, parse_infoline, KeyModel
@@ -129,6 +129,7 @@ class KeyOperator(BaseOperator):
 
 class Key(KeyModel):
     operator: KeyOperator = Field(exclude=True)
+    internal_subkeys: list["Key"] = Field(exclude=True, default_factory=list)
     model_config = {"arbitrary_types_allowed": True}
 
     @property
@@ -140,13 +141,24 @@ class Key(KeyModel):
         """
         return self.operator.session
 
+    @computed_field
+    def subkeys(self) -> list["Key"] | None:
+        if self.is_subkey:
+            return None
+        return self.internal_subkeys
+
+    @staticmethod
+    def apply(operator: KeyOperator, model: KeyModel) -> "Key":
+        model.internal_subkeys = [
+            Key.apply(operator, i) for i in model.internal_subkeys
+        ][:]
+        return Key(operator=operator, **dict(model))
+
     @classmethod
     def from_infolines(
         cls, operator: KeyOperator, lines: list[InfoLine]
     ) -> list["Key"]:
-        return [
-            Key(operator=operator, **dict(i)) for i in super().from_infolines(lines)
-        ]
+        return [Key.apply(operator, i) for i in super().from_infolines(lines)]
 
     def reload(self) -> "Key":
         """Reloads cached information from the keyring.
@@ -360,6 +372,9 @@ class Key(KeyModel):
             expiration (datetime | timedelta | int | str | None, optional): Expiration date, or None for no expiration. Defaults to None.
             key_passphrase (str | None, optional): Passphrase for the new key. Defaults to None.
         """
+        if self.is_subkey:
+            raise ValueError("Cannot add a subkey to a subkey.")
+
         if isinstance(expiration, datetime):
             expire_str = expiration.isoformat()
         elif isinstance(expiration, timedelta):
