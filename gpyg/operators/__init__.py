@@ -1,1 +1,1 @@
-from .keys import KeyOperator, Key, KeyEditSession
+from .keys import KeyOperator, Key, KeyEditSession, SigningMode

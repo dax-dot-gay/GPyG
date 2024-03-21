@@ -1,5 +1,6 @@
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta
+from enum import StrEnum
 from typing import Any, Literal
 
 from pydantic import Field, PrivateAttr, computed_field
@@ -558,10 +559,12 @@ class Key(KeyModel):
         passphrase: str | None = None,
         uid_select: str | Literal["*"] | None = "*",
         key_select: str | Literal["*"] | None = "*",
+        run_as: str | None = None,
     ):
         """Creates a session for performing advanced edit tasks on a key (ie gpg --edit-key)
 
         Args:
+            run_as (str | None, optional): An optional alternate UID/key to run as. Defaults to None.
             passphrase (str | None, optional): Key passphrase, if required. Defaults to None.
             uid_select (str | Literal[, optional): UID to select initially. Defaults to "*".
             key_select (str | Literal[, optional): Subkey ID to select initially. Defaults to "*".
@@ -570,8 +573,19 @@ class Key(KeyModel):
             KeyEditSession: The generated session, which provides a wrapper around the edit-key commands
         """
         yield KeyEditSession(
-            self, passphrase=passphrase, uid_select=uid_select, key_select=key_select
+            self,
+            run_as if run_as else self.fingerprint,
+            passphrase=passphrase,
+            uid_select=uid_select,
+            key_select=key_select,
         )
+
+
+class SigningMode(StrEnum):
+    EXPORTABLE = "sign"
+    LOCAL = "lsign"
+    NON_REVOCABLE = "nrsign"
+    TRUST = "tsign"
 
 
 class KeyEditSession:
@@ -579,11 +593,13 @@ class KeyEditSession:
     def __init__(
         self,
         key: Key,
+        run_as: str,
         passphrase: str | None = None,
         uid_select: str | Literal["*"] | None = "*",
         key_select: str | Literal["*"] | None = "*",
     ):
         self.key = key
+        self.run_as = run_as
         self.passphrase = passphrase
         self.uid_select = uid_select
         self.key_select = key_select
@@ -602,19 +618,18 @@ class KeyEditSession:
             [
                 line
                 for line in self.key.session.run(
-                    f"gpg --batch --command-fd 0 --status-fd 1 --pinentry-mode loopback --with-colons --edit-key {self.key.fingerprint}",
+                    f"gpg -u {self.run_as} --batch --command-fd 0 --status-fd 1 --pinentry-mode loopback --edit-key {self.key.fingerprint}",
                     input="\n".join(
                         [
                             f"uid {self.uid_select if self.uid_select else '0'}",
                             f"key {self.key_select if self.key_select else '0'}",
                             command,
                             *inputs,
-                            "quit",
+                            "save",
                         ]
                     ),
-                ).output.splitlines()
-                if not line.startswith("[GNUPG:]")
-            ]
+                ).output.split("[GNUPG:] GET_LINE keyedit.prompt\n[GNUPG:] GOT_IT\n")
+            ][3:-1]
         )
 
     def select_uid(self, value: str | Literal["*"] | None):
@@ -632,3 +647,14 @@ class KeyEditSession:
             value (str | Literal['*'] | None): Subkey ID, or None for no selection
         """
         self.key_select = value
+
+    def select_run_as(self, value: str | None):
+        """Sets the user to run as
+
+        Args:
+            value (str | None): User/Fingerprint, or None to use the default
+        """
+        self.run_as = value
+
+    def sign(self, mode: SigningMode = SigningMode.EXPORTABLE):
+        return self.execute(mode, "y", self.passphrase, "")
