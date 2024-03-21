@@ -15,7 +15,6 @@ class Process:
         popen: subprocess.Popen,
         command: str | list[str],
         options: dict[str, Any],
-        launch_thread: bool = False,
         decode_output: bool = True,
     ):
         self.popen = popen
@@ -24,32 +23,6 @@ class Process:
         self.output = "" if decode_output else b""
         self.code: int | None = None
         self.decode = decode_output
-        if launch_thread:
-            self.listener = threading.Thread(
-                target=self.listen, name=f"listener-{self.command}", daemon=True
-            )
-            self.listener.start()
-        else:
-            self.listener = None
-
-    def listen(self):
-        while True:
-            try:
-                data = (
-                    self.popen.stdout.read(1).decode()
-                    if self.decode
-                    else self.popen.stdout.read(1)
-                )
-            except:
-                data = None
-            if self.poll() != None and data == None:
-                return
-
-            self.output += data
-            try:
-                self.popen.stdout.flush()
-            except:
-                pass
 
     @property
     def pid(self) -> int:
@@ -72,74 +45,14 @@ class Process:
             self.popen.stdin.write(data)
             self.popen.stdin.flush()
 
-    def lines(
-        self, seek: int = 0, strip: bool = True
-    ) -> Generator[str | bytes, Any, None]:
-        if not self.listener:
-            raise RuntimeError("Not in listener mode.")
-        if seek < 0:
-            pointer = len(self.output) + seek
-        else:
-            pointer = min(seek, len(self.output))
-
-        chunk = "" if self.decode else b""
-        while True:
-            if self.code != None:
-                yield chunk.strip() if strip else chunk
-                return
-
-            try:
-                char = self.output[pointer]
-                pointer += 1
-                if len(char) > 0:
-                    chunk += char
-
-                if chunk.endswith("\n"):
-                    if strip:
-                        yield chunk.strip()
-                    else:
-                        yield chunk
-
-                    chunk = "" if self.decode else b""
-            except IndexError:
-                pass
-
-            time.sleep(0)
-
-    def tui(
-        self,
-        pattern: str,
-        match_mode: Literal["contains", "regex", "line"] = "contains",
-        seek: int = 0,
-    ) -> Generator[list[str | bytes], Any, None]:
-        lines = []
-        for line in self.lines(seek=seek):
-            lines.append(line)
-            print(line)
-            match match_mode:
-                case "contains":
-                    if pattern in line:
-                        yield lines[:]
-                        lines = []
-                case "line":
-                    if pattern == line:
-                        yield lines[:]
-                        lines = []
-                case "regex":
-                    if re.search(pattern, line):
-                        yield lines[:]
-                        lines = []
-
     def wait(self, timeout: float | None = None, kill_on_timeout: bool = True) -> int | None:
         if self.code == None:
             try:
-                output = (
+                self.output = (
                     self.popen.communicate(timeout=timeout)[0].decode()
                     if self.decode
                     else self.popen.communicate(timeout=timeout)[0]
                 )
-                if self.listener == None:
-                    self.output = output
             except subprocess.TimeoutExpired:
                 if kill_on_timeout:
                     self.kill()
@@ -212,7 +125,6 @@ class ProcessSession:
         shell: bool | None = None,
         environment: dict[str, str] | None = None,
         working_directory: str | None = None,
-        listen: bool = False,
         decode: bool = True,
     ) -> Process:
         options = self.make_kwargs(shell=shell, env=environment, cwd=working_directory)
@@ -220,7 +132,7 @@ class ProcessSession:
 
         popen = subprocess.Popen(parsed_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, **options)
         self.processes[popen.pid] = Process(
-            popen, parsed_command, options, launch_thread=listen, decode_output=decode
+            popen, parsed_command, options, decode_output=decode
         )
         return self.processes[popen.pid]
 
@@ -247,7 +159,7 @@ class ProcessSession:
             **options,
         )
         self.processes[popen.pid] = Process(
-            popen, parsed_command, options, launch_thread=False, decode_output=decode
+            popen, parsed_command, options, decode_output=decode
         )
 
         if input:
