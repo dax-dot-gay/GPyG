@@ -119,3 +119,11 @@ class KeyRevocationReason(StrEnum):
     KEY_COMPROMISED = "1"
     KEY_SUPERSEDED = "2"
     KEY_UNUSED = "3"
+
+
+class KeyTrust(StrEnum):
+    UNKNOWN = "1"
+    UNTRUSTED = "2"
+    MARGINAL_TRUST = "3"
+    FULL_TRUST = "4"
+    ULTIMATE_TRUST = "5"

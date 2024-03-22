@@ -17,6 +17,7 @@ from ..models import (
     SignatureInfo,
     RevocationReason,
     KeyRevocationReason,
+    KeyTrust,
 )
 
 
@@ -902,3 +903,118 @@ class KeyEditor:
             return
 
         self.interactive.writelines(passphrase if passphrase else "")
+
+    def expire_key(self, expires: str = "0", passphrase: str | None = None):
+        """Sets a key to expire
+
+        Args:
+            expires (str, optional): Amount of time to expire after, or "0" for never. Defaults to "0".
+            passphrase (str | None, optional): Passphrase, if required. Defaults to None.
+
+        Raises:
+            ExecutionError: If operation fails
+        """
+        self.interactive.writelines("expire")
+        lines = self.wait_for_status(StatusCodes.GET_LINE)
+
+        self.interactive.writelines(expires)
+        self.wait_for_status(StatusCodes.GET_LINE, StatusCodes.GET_BOOL)
+        if lines[-1].code == StatusCodes.GET_LINE:
+            raise ExecutionError("Invalid value")
+
+        self.interactive.writelines("y")
+        self.wait_for_status(StatusCodes.GET_LINE, StatusCodes.GET_HIDDEN)
+        if lines[-1].code == StatusCodes.GET_LINE:
+            return
+
+        if passphrase:
+            self.interactive.writelines(passphrase)
+        else:
+            self.interactive.writelines("")
+        self.wait_for_status(StatusCodes.GET_LINE)
+
+    def trust_key(self, amount: KeyTrust = KeyTrust.UNKNOWN):
+        """Sets the current key's trust value
+
+        Args:
+            amount (KeyTrust, optional): Amount to trust the key. Defaults to KeyTrust.UNKNOWN.
+
+        Raises:
+            ExecutionError: If operation fails
+        """
+        self.interactive.writelines("trust")
+        lines = self.wait_for_status(StatusCodes.GET_LINE)
+        if lines[-1].arguments[0] == "keyedit.prompt":
+            raise ExecutionError("Unknown error")
+
+        self.interactive.writelines(str(amount))
+        lines = self.wait_for_status(StatusCodes.GET_LINE)
+
+    def set_enabled(self, enabled: bool = True):
+        """Disable/enable the key
+
+        Args:
+            enabled (bool, optional): Whether to enable or disable. Defaults to True.
+        """
+        self.interactive.writelines("enable" if enabled else "disable")
+        self.wait_for_status(StatusCodes.GET_LINE)
+
+    def add_revoker(self, user_id: str):
+        """Adds a revoker (cannot be removed)
+
+        Args:
+            user_id (str): UID to allow to revoke this key
+
+        Raises:
+            ExecutionError: If operation fails
+        """
+        self.interactive.writelines("addrevoker")
+        lines = self.wait_for_status(StatusCodes.GET_LINE)
+        if lines[-1].arguments[0] == "keyedit.prompt":
+            raise ExecutionError("Unknown error")
+
+        self.interactive.writelines(user_id)
+        self.wait_for_status(StatusCodes.GET_LINE, StatusCodes.GET_BOOL)
+        if lines[-1].code == StatusCodes.GET_LINE:
+            raise ExecutionError("Invalid value")
+
+        self.interactive.writelines("y")
+        self.wait_for_status(StatusCodes.GET_LINE)
+
+    def change_password(self, old_password: str | None, new_password: str | None):
+        """Change selected key's password
+
+        Args:
+            old_password (str | None): Old password
+            new_password (str | None): New password
+
+        Raises:
+            ExecutionError: If operation fails
+        """
+        self.interactive.writelines("passwd")
+        lines = self.wait_for_status(StatusCodes.GET_LINE, StatusCodes.GET_HIDDEN)
+        if lines[-1].code == StatusCodes.GET_LINE:
+            raise ExecutionError("Unknown error")
+
+        self.interactive.writelines(old_password if old_password else "")
+        lines = self.wait_for_status(StatusCodes.GET_LINE, StatusCodes.GET_HIDDEN)
+        if lines[-1].code == StatusCodes.GET_LINE:
+            raise ExecutionError("Unknown error")
+
+        self.interactive.writelines(new_password if new_password else "")
+        lines = self.wait_for_status(StatusCodes.GET_LINE, StatusCodes.GET_HIDDEN)
+        if lines[-1].code == StatusCodes.GET_LINE:
+            return
+
+        self.interactive.writelines(new_password if new_password else "")
+        self.wait_for_status(StatusCodes.GET_LINE)
+
+    def clean(self):
+        """Run the `clean` command"""
+        self.interactive.writelines("clean")
+        self.wait_for_status(StatusCodes.GET_LINE)
+
+    def minimize(self):
+        """Run the `minimize` command"""
+        self.interactive.writelines("minimize")
+        self.wait_for_status(StatusCodes.GET_LINE)
