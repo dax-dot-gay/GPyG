@@ -112,3 +112,10 @@ class SigningModes(StrEnum):
 class RevocationReason(StrEnum):
     NO_REASON = "0"
     USER_ID_INVALID = "4"
+
+
+class KeyRevocationReason(StrEnum):
+    NO_REASON = "0"
+    KEY_COMPROMISED = "1"
+    KEY_SUPERSEDED = "2"
+    KEY_UNUSED = "3"

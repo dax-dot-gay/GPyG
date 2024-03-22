@@ -16,11 +16,11 @@ from ..models import (
     SigningModes,
     SignatureInfo,
     RevocationReason,
+    KeyRevocationReason,
 )
 
 
 class KeyOperator(BaseOperator):
-
     def generate_key(
         self,
         name: str,
@@ -810,6 +810,11 @@ class KeyEditor:
                 raise ExecutionError(self.interactive.read().decode())
 
     def delete_uid(self):
+        """Delete the selected UID
+
+        Raises:
+            ExecutionError: If operation fails
+        """
         self.interactive.writelines("deluid")
         lines = self.wait_for_status(StatusCodes.GET_LINE, StatusCodes.GET_BOOL)
         if lines[-1].code == StatusCodes.GET_LINE:
@@ -823,6 +828,15 @@ class KeyEditor:
         reason: RevocationReason = RevocationReason.NO_REASON,
         description: str | None = None,
     ):
+        """Revokes the selected UID
+
+        Args:
+            reason (RevocationReason, optional): Reason for revocation. Defaults to RevocationReason.NO_REASON.
+            description (str | None, optional): Optional description. Defaults to None.
+
+        Raises:
+            ExecutionError: If operation fails
+        """
         self.interactive.writelines("revuid")
         lines = self.wait_for_status(StatusCodes.GET_LINE, StatusCodes.GET_BOOL)
         if lines[-1].code == StatusCodes.GET_LINE:
@@ -838,3 +852,53 @@ class KeyEditor:
         lines = self.wait_for_status(StatusCodes.GET_BOOL)
         self.interactive.writelines("y")
         lines = self.wait_for_status(StatusCodes.GET_LINE)
+
+    def set_primary(self):
+        """Sets the currently selected UID as primary"""
+        self.interactive.writelines("primary")
+        self.wait_for_status(StatusCodes.GET_LINE)
+
+    def delete_key(self):
+        """Delete the currently selected key
+
+        Raises:
+            ExecutionError: If operation fails
+        """
+        self.interactive.writelines("delkey")
+        lines = self.wait_for_status(StatusCodes.GET_LINE, StatusCodes.GET_BOOL)
+        if lines[-1].code == StatusCodes.GET_LINE:
+            raise ExecutionError("Key not selected/could not be deleted")
+        self.interactive.writelines("y")
+        self.wait_for_status(StatusCodes.GET_LINE)
+
+    def revoke_key(
+        self,
+        reason: KeyRevocationReason = KeyRevocationReason.NO_REASON,
+        description: str | None = None,
+        passphrase: str | None = None,
+    ):
+        """Revokes the selected key
+
+        Args:
+            reason (KeyRevocationReason, optional): Reason to revoke. Defaults to KeyRevocationReason.NO_REASON.
+            description (str | None, optional): Optional description. Defaults to None.
+            passphrase (str | None, optional): Key password, if required. Defaults to None.
+
+        Raises:
+            ExecutionError: If operation fails
+        """
+        self.interactive.writelines("revkey")
+        lines = self.wait_for_status(StatusCodes.GET_LINE, StatusCodes.GET_BOOL)
+        if lines[-1].code == StatusCodes.GET_LINE:
+            raise ExecutionError("Key not selected/could not be deleted")
+
+        self.interactive.writelines("y")
+        self.wait_for_status(StatusCodes.GET_LINE)
+        self.interactive.writelines(str(reason))
+        self.wait_for_status(StatusCodes.GET_LINE)
+        self.interactive.writelines(description if description else "")
+        lines = self.wait_for_status(StatusCodes.GET_LINE, StatusCodes.GET_HIDDEN)
+        if lines[-1].code == StatusCodes.GET_LINE:
+            return
+
+        self.interactive.writelines(passphrase if passphrase else "")
