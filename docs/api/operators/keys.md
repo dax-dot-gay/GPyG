@@ -20,8 +20,8 @@ Wrapper for individual key functions, such as signing, encryption, etc. Returned
 
 ---
 
-## `KeyEditSession()` - Wrapper for `gpg --edit-key`
+## `KeyEditor()` - Wrapper for `gpg --edit-key`
 
-Wraps advanced key editing functions in a stateless interface. Returned by `Key().edit(...)`
+Wraps advanced key editing functions in a stateless interface. Returned by `Key().edit(...)`. Operations in this category should be considered unsafe, as they rely on an unstable terminal menu to function.
 
-::: gpyg.operators.KeyEditSession
+::: gpyg.operators.KeyEditor

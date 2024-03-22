@@ -107,3 +107,8 @@ class SigningModes(StrEnum):
     NON_EXPORTABLE = "lsign"
     NON_REVOCABLE = "nrsign"
     TRUST = "tsign"
+
+
+class RevocationReason(StrEnum):
+    NO_REASON = "0"
+    USER_ID_INVALID = "4"

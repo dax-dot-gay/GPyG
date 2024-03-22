@@ -12,15 +12,12 @@ with TemporaryDirectory(dir="tmp", delete=False) as tmpdir:
     gpg = GPG(homedir=tmpdir, kill_existing_agent=True)
     key = gpg.keys.generate_key("Bongus", passphrase="test")
     key_other = gpg.keys.generate_key("Bingus", passphrase="test2")
-    with key.edit(passphrase="test2", user=key_other.fingerprint) as editor:
-        editor.set_key("*")
-        editor.sign()
-        print(editor.interactive.writelines("check"))
+    with key.edit() as editor:
+        editor.add_uid("bebby", passphrase="test")
+        print(editor.list())
+        editor.set_uid("2")
+        editor.revoke_uid()
         editor.save()
-        editor.interactive.seek(0)
-        print("===")
-        print(editor.interactive.read().decode())
-        print("===")
 
     key.reload()
     print(key.model_dump_json(indent=4))
