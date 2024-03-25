@@ -113,3 +113,11 @@ def test_set_primary_uid(environment):
     assert len(key.user_ids) == 2
     key.set_primary_uid("New Primary")
     assert key.user_ids[0].uid == "New Primary"
+
+
+def test_delete_key(environment):
+    key = environment.keys.list_keys()[3]
+    assert len(key.subkeys) == 1
+    key.subkeys[0].delete()
+    key.reload()
+    assert len(key.subkeys) == 0

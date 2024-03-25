@@ -506,6 +506,23 @@ class Key(KeyModel):
         else:
             raise ExecutionError(proc.output)
 
+    def delete(self, delete_both: bool = True) -> None:
+        """Deletes self.
+
+        Args:
+            delete_both (bool, optional): Whether to delete both the public and private key. Defaults to True.
+
+        Raises:
+            ExecutionError: If the operation fails
+        """
+        cmd = f"gpg --batch --yes {'--delete-secret-and-public-key' if delete_both else ('--delete-keys' if self.type == 'public' else '--delete-secret-keys')} {self.fingerprint}{'!' if self.is_subkey else ''}"
+        proc = self.session.run(cmd)
+
+        if proc.code == 0:
+            return
+        else:
+            raise ExecutionError(proc.output)
+
     def revoke_signature(
         self,
         signer: "Key | str",

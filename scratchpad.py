@@ -11,15 +11,10 @@ os.makedirs("./tmp", exist_ok=True)
 with TemporaryDirectory(dir="tmp", delete=False) as tmpdir:
     gpg = GPG(homedir=tmpdir, kill_existing_agent=True)
     key = gpg.keys.generate_key("Bongus", passphrase="test")
-    key_other = gpg.keys.generate_key("Bingus", passphrase="test2")
-    with key.edit() as editor:
-        print(editor.get_preferences())
-        time.sleep(2)
-        editor.interactive.seek(0)
-        print(editor.interactive.read().decode())
+    key.subkeys[0].delete()
 
     key.reload()
-    # print(key.model_dump_json(indent=4))
+    print(key.model_dump_json(indent=4))
 
     """gpg = GPG(homedir=tmpdir, kill_existing_agent=True)
     key = gpg.keys.generate_key("Bongus", passphrase="test")
