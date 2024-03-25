@@ -10,16 +10,18 @@ The following models pertain to Smartcard information & related. See also: [Oper
 
 ## Other Types
 
+### `Sex()`
+
 ::: gpyg.models.Sex
 
-### `PinData<>`
+### `PinData<>()`
 
 ::: gpyg.models.PinData
 
-### `UIFData`
+### `UIFData()`
 
 ::: gpyg.models.UIFData
 
-### `KeyData`
+### `KeyData()`
 
 ::: gpyg.models.KeyData
