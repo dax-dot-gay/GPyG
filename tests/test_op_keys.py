@@ -106,14 +106,6 @@ def test_revoke_uid(environment):
     assert result.user_ids[1].validity == "r"
 
 
-def test_revoke_sig(environment):
-    keys = environment.keys.list_keys()
-    keys[1].sign_key(keys[0], password="test-psk-1")
-    prev = len(keys[0].valid_signatures)
-    keys[0].revoke_signature(keys[1], passphrase="test-psk-1")
-    assert len(keys[0].valid_signatures) != prev
-
-
 def test_set_primary_uid(environment):
     key = environment.keys.list_keys()[3]
 

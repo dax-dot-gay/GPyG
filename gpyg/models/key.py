@@ -37,30 +37,6 @@ class KeyModel(BaseModel):
     def revocation_signatures(self) -> list[SignatureInfo]:
         return [i for i in self.all_signatures if i.is_revocation]
 
-    @computed_field
-    def valid_signatures(self) -> list[SignatureInfo]:
-        revocations = [
-            (i, self.all_signatures[i])
-            for i in range(len(self.all_signatures))
-            if self.all_signatures[i].is_revocation
-        ]
-        result = [
-            (i, self.all_signatures[i])
-            for i in range(len(self.all_signatures))
-            if not self.all_signatures[i].is_revocation
-        ]
-        for rev_index, rev in revocations:
-            result = [
-                (index, sig)
-                for index, sig in result
-                if (
-                    sig.signer_fingerprint != rev.signer_fingerprint
-                    or sig.key_id != rev.key_id
-                )
-                or sig.creation_date > rev.creation_date
-            ]
-        return [i[1] for i in result]
-
     @staticmethod
     def get_subkeys(
         key: "KeyModel", subkey_map: dict[str, list["KeyModel"]]

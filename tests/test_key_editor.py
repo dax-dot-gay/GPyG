@@ -25,18 +25,6 @@ def test_delete_sign(interactive):
     assert len(signee.signatures) == 1
 
 
-def test_revoke_sign(interactive):
-    editor, signee, signer = interactive
-    assert len(signee.valid_signatures) == 1
-    editor.sign(signer_passphrase="signer")
-    editor.set_uid("1")
-    editor.set_key("1")
-    editor.revoke_signature(signer)
-    editor.save()
-    signee.reload()
-    assert len(signee.valid_signatures) == 1
-
-
 def test_add_uid(interactive):
     editor, signee, signer = interactive
     assert len(signee.user_ids) == 1
