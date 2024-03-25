@@ -43,13 +43,15 @@ class MessageOperator(BaseOperator):
             return result.output
         raise ExecutionError(f"Failed to encrypt:\n{result.output}")
 
-    def decrypt(self, data: bytes, key: Key, passphrase: str | None = None) -> bytes:
+    def decrypt(
+        self, data: bytes, key: Key | None = None, passphrase: str | None = None
+    ) -> bytes:
         """Decrypt PGP-encrypted data
 
         Args:
             data (bytes): Data to decrypt
-            key (Key): Recipient key
-            passphrase (str | None, optional): Recipient passphrase, if present. Defaults to None.
+            key (Key | None, optional): Recipient key. Defaults to None
+            passphrase (str | None, optional): Passphrase, if required. Defaults to None.
 
         Raises:
             ExecutionError: If the operation fails
@@ -60,13 +62,47 @@ class MessageOperator(BaseOperator):
         with NamedTemporaryFile() as datafile:
             datafile.write(data)
             datafile.seek(0)
-            cmd = f"gpg -u {key.fingerprint} --batch --pinentry-mode loopback --passphrase-fd 0 --output - --decrypt {datafile.name}"
+            cmd = f"gpg {'-u ' + key.fingerprint if key else ''} --batch --pinentry-mode loopback --passphrase-fd 0 --output - --decrypt {datafile.name}"
             result = self.session.run(
                 cmd, decode=False, input=passphrase + "\n" if passphrase else None
             )
         if result.code == 0:
             return result.output.split(b"\n", maxsplit=2)[-1]
         raise ExecutionError(f"Failed to decrypt:\n{result.output}")
+
+    def encrypt_symmetric(
+        self,
+        data: bytes,
+        passphrase: str,
+        algo: str = "AES",
+        format: Literal["ascii", "pgp"] = "ascii",
+    ) -> bytes:
+        """Symmetrically encrypt data with <algo> and <passphrase>
+
+        Args:
+            data (bytes): Data to encrypt
+            passphrase (str): Passphrase to use
+            algo (str, optional): Algorithm selection. Defaults to "AES".
+            format (ascii | pgp, optional): Output format. Defaults to "ascii".
+
+        Raises:
+            ExecutionError: If operation fails
+
+        Returns:
+            bytes: Encrypted data
+        """
+        with NamedTemporaryFile() as datafile:
+            datafile.write(data)
+            datafile.seek(0)
+            result = self.session.run(
+                f"gpg {'--armor' if format == 'ascii' else ''} --cipher-algo {algo} --output - --passphrase-fd 0 --pinentry-mode loopback --symmetric {datafile.name}",
+                decode=False,
+                input=passphrase,
+            )
+
+            if result.code == 0:
+                return result.output
+            raise ExecutionError(f"Failed to encrypt:\n{result.output}")
 
     def get_recipients(
         self,

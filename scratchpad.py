@@ -11,10 +11,9 @@ os.makedirs("./tmp", exist_ok=True)
 with TemporaryDirectory(dir="tmp", delete=False) as tmpdir:
     gpg = GPG(homedir=tmpdir, kill_existing_agent=True)
     key = gpg.keys.generate_key("Bongus", passphrase="test")
-    encrypted = gpg.messages.encrypt(b"A secret message", key, format="pgp")
+    encrypted = gpg.messages.encrypt_symmetric(b"A secret message", "test-sym")
     print(encrypted)
-    signed = gpg.messages.sign(encrypted, key, passphrase="test")
-    print(gpg.messages.verify(signed))
+    print(gpg.messages.decrypt(encrypted, key, passphrase="test-sym"))
 
     """gpg = GPG(homedir=tmpdir, kill_existing_agent=True)
     key = gpg.keys.generate_key("Bongus", passphrase="test")

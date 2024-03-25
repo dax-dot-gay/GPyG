@@ -32,3 +32,12 @@ def test_sign(smallenv):
     verification = env.messages.verify(signed)
     assert len(verification) > 0
     assert verification[0][0] == key.key_id
+
+
+def test_symmetric(smallenv):
+    env, key = smallenv
+    DATA = b"test-data"
+    encrypted = env.messages.encrypt_symmetric(DATA, "test")
+    assert encrypted != DATA
+    decrypted = env.messages.decrypt(encrypted, passphrase="test")
+    assert decrypted == DATA
