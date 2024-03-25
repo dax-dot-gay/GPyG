@@ -139,6 +139,22 @@ class KeyOperator(BaseOperator):
 
         return results[0]
 
+    def import_key(self, *keyfiles: str):
+        """Imports keys from file paths into the keyring
+
+        Args:
+            *keyfiles (str): Any number of files to import
+
+        Raises:
+            ExecutionError: If operation fails
+        """
+        for file in keyfiles:
+            result = self.session.run(f"gpg --batch --yes --import {file}")
+            if result.code != 0:
+                raise ExecutionError(
+                    f"Failed to import {file} with code {result.code}:\n{result.output}"
+                )
+
 
 class Key(KeyModel):
     operator: KeyOperator = Field(exclude=True)

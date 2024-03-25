@@ -1,3 +1,4 @@
+import os
 from gpyg import *
 
 
@@ -121,3 +122,15 @@ def test_delete_key(environment):
     key.subkeys[0].delete()
     key.reload()
     assert len(key.subkeys) == 0
+
+
+def test_import_key(environment):
+    keys = environment.keys.list_keys()
+    assert len(keys) == 4
+    with open(os.path.join(environment.homedir, "export.asc"), "wb") as f:
+        f.write(keys[0].export())
+
+    keys[0].delete()
+    assert len(environment.keys.list_keys()) == 3
+    environment.keys.import_key(os.path.join(environment.homedir, "export.asc"))
+    assert len(environment.keys.list_keys()) == 4
