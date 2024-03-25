@@ -33,7 +33,7 @@ class MessageOperator(BaseOperator):
         )
         cmd = (
             "gpg {compress} --batch --encrypt {recipients} {armored} --output -".format(
-                compress="-z 0" if compress else "",
+                compress="-z 0" if not compress else "",
                 recipients=parsed_recipients,
                 armored="--armor" if format == "ascii" else "",
             )
