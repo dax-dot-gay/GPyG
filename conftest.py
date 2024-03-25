@@ -1,5 +1,5 @@
 import pytest
-from gpyg import GPG
+from gpyg import GPG, CardOperator
 
 
 @pytest.fixture(scope="module")

@@ -48,3 +48,12 @@ class GPG:
             MessageOperator: The MessageOperator
         """
         return MessageOperator(self)
+
+    @property
+    def cards(self) -> CardOperator:
+        """Creates a CardOperator for this instance
+
+        Returns:
+            CardOperator: The CardOperator
+        """
+        return CardOperator(self)

@@ -9,6 +9,7 @@ nav:
     - Operators:
       - Key Operations: "api/operators/keys.md"
       - Message Operations: "api/operators/messages.md"
+      - SmartCard Operations: "api/operators/cards.md"
 
 watch:
   - gpyg
