@@ -632,13 +632,20 @@ class KeyEditor:
         self.interactive.writelines(f"uid {uid}")
         self.wait_for_status(StatusCodes.GET_LINE)
 
-    def set_key(self, key: str):
+    def set_key(self, key: str | Key | None):
         """Select a specific subkey
 
         Args:
-            key (str): KEY to select, or "0" for none.
+            key (str | Key | None): KEY to select, or None for no selection.
         """
-        self.interactive.writelines(f"key {key}")
+
+        if isinstance(key, Key):
+            self.interactive.writelines(f"key {key.key_id}")
+        elif type(key) == str:
+            self.interactive.writelines(f"key {key}")
+        else:
+            self.interactive.writelines("key 0")
+
         self.wait_for_status(StatusCodes.GET_LINE)
 
     def sign(

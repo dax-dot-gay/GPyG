@@ -33,3 +33,15 @@ def environment(scoped_instance: GPG) -> GPG:
         )
 
     return scoped_instance
+
+
+@pytest.fixture
+def interactive(instance: GPG):
+    signee = instance.keys.generate_key(
+        name="Signee", email="signee@example.com", passphrase="signee"
+    )
+    signer = instance.keys.generate_key(
+        name="Signer", email="signer@example.com", passphrase="signer"
+    )
+    with signee.edit(user=signer.fingerprint) as editor:
+        yield editor, signee, signer
