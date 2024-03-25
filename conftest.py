@@ -35,6 +35,14 @@ def environment(scoped_instance: GPG) -> GPG:
     return scoped_instance
 
 
+@pytest.fixture(scope="module")
+def smallenv(scoped_instance: GPG):
+    key = scoped_instance.keys.generate_key(
+        "user", email="user@example.com", passphrase="user"
+    )
+    return scoped_instance, key
+
+
 @pytest.fixture
 def interactive(instance: GPG):
     signee = instance.keys.generate_key(

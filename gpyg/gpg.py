@@ -39,3 +39,12 @@ class GPG:
             KeyOperator: The KeyOperator
         """
         return KeyOperator(self)
+
+    @property
+    def messages(self) -> MessageOperator:
+        """Creates a MessageOperator for this instance
+
+        Returns:
+            MessageOperator: The MessageOperator
+        """
+        return MessageOperator(self)

@@ -144,7 +144,7 @@ class ProcessSession:
         working_directory: str | None = None,
         timeout: int | None = None,
         decode: bool = True,
-        input: str | None = None,
+        input: str | bytes | None = None,
     ) -> Process:
         options = self.make_kwargs(shell=shell, env=environment, cwd=working_directory)
         parsed_command = self.parse_cmd(
@@ -163,7 +163,9 @@ class ProcessSession:
         )
 
         if input:
-            self.processes[popen.pid].write(input.encode())
+            self.processes[popen.pid].write(
+                input.encode() if type(input) == str else input
+            )
 
         self.processes[popen.pid].wait(timeout=timeout, kill_on_timeout=True)
         return self.processes[popen.pid]

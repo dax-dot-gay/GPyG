@@ -8,6 +8,7 @@ nav:
     - GPG Instance: "api/gpg-instance.md"
     - Operators:
       - Key Operations: "api/operators/keys.md"
+      - Message Operations: "api/operators/messages.md"
 
 watch:
   - gpyg
