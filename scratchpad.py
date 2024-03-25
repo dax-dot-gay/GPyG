@@ -13,9 +13,8 @@ with TemporaryDirectory(dir="tmp", delete=False) as tmpdir:
     key = gpg.keys.generate_key("Bongus", passphrase="test")
     encrypted = gpg.messages.encrypt(b"A secret message", key, format="pgp")
     print(encrypted)
-    decrypted = gpg.messages.decrypt(encrypted, key, passphrase="test")
-    print(decrypted)
-    print(gpg.messages.get_recipients(encrypted))
+    signed = gpg.messages.sign(encrypted, key, passphrase="test")
+    print(gpg.messages.verify(signed))
 
     """gpg = GPG(homedir=tmpdir, kill_existing_agent=True)
     key = gpg.keys.generate_key("Bongus", passphrase="test")

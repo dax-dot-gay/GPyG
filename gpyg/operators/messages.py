@@ -111,3 +111,84 @@ class MessageOperator(BaseOperator):
             else:
                 return key_ids
         raise ExecutionError(f"Failed to get recipients:\n{result.output}")
+
+    def sign(
+        self,
+        data: bytes,
+        key: Key,
+        mode: Literal["standard", "clear", "detach"] = "standard",
+        passphrase: str | None = None,
+        format: Literal["ascii", "pgp"] = "ascii",
+    ) -> bytes:
+        """Signs data with the specified key.
+
+        Args:
+            data (bytes): Data to sign
+            key (Key): Key to sign with
+            mode (standard | clear | detach, optional): What kind of signature to create. Defaults to "standard".
+            passphrase (str | None, optional): Key passphrase, if required. Defaults to None.
+            format (ascii | pgp, optional): Output format. Defaults to "ascii".
+
+        Raises:
+            ExecutionError: If the operation fails
+
+        Returns:
+            bytes: Signed data/detached signature
+        """
+        with NamedTemporaryFile() as datafile:
+            datafile.write(data)
+            datafile.seek(0)
+            cmd = "gpg --default-key {key} --batch --yes --pinentry-mode loopback {format} --passphrase-fd 0 -o - {operation} {file}".format(
+                key=key.key_id,
+                format="--armor" if format == "ascii" else "",
+                operation={
+                    "standard": "--sign",
+                    "clear": "--clear-sign",
+                    "detach": "--detach-sign",
+                }[mode],
+                file=datafile.name,
+            )
+            result = self.session.run(
+                cmd, decode=False, input=passphrase + "\n" if passphrase else None
+            )
+            if result.code == 0:
+                return b"\n".join(
+                    [
+                        i
+                        for i in result.output.splitlines()
+                        if not i.startswith(b"gpg: ")
+                    ]
+                )
+            raise ExecutionError(f"Failed to sign message:\n{result.output}")
+
+    def verify(
+        self,
+        data: bytes,
+        signature: bytes | None = None,
+    ) -> list[tuple[str, str]]:
+        """Gets a list of signatures on the given data, with an optional detached signature
+
+        Args:
+            data (bytes): Data, or in the case that `signature` is not specified, signed data.
+            signature (bytes | None, optional): A detached signature. Defaults to None.
+
+        Returns:
+            list[tuple[str, str]]: List of `(Key ID, User ID)` records
+        """
+        with NamedTemporaryFile() as datafile:
+            datafile.write(data)
+            datafile.seek(0)
+            if signature:
+                with NamedTemporaryFile() as sigfile:
+                    sigfile.write(signature)
+                    sigfile.seek(0)
+                    cmd = f"gpg --status-fd 1 --batch -v --verify {sigfile.name} {datafile.name}"
+                    result = self.session.run(cmd)
+            else:
+                cmd = f"gpg --status-fd 1 --batch -v --verify {datafile.name}"
+                result = self.session.run(cmd)
+        return [
+            (i.split(" ")[2], i.split(" ", maxsplit=3)[3])
+            for i in result.output.splitlines()
+            if i.startswith("[GNUPG:] GOODSIG")
+        ]
