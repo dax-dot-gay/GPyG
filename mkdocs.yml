@@ -10,6 +10,8 @@ nav:
       - Key Operations: "api/operators/keys.md"
       - Message Operations: "api/operators/messages.md"
       - SmartCard Operations: "api/operators/cards.md"
+    - Models & Types:
+      - SmartCard Types: "api/models/cards.md"
 
 watch:
   - gpyg
