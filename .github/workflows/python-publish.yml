@@ -17,11 +17,12 @@ permissions:
 
 jobs:
   deploy:
-
     runs-on: ubuntu-latest
-    environment: publish
+    environment:
+        name: publishing
+        url: https://pypi.org/p/GPyG
     permissions:
-      id-token: write
+      id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python
@@ -34,5 +35,5 @@ jobs:
         pip install build
     - name: Build package
       run: python -m build
-    - name: Publish package
-      uses: pypa/gh-action-pypi-publish@27b31702a0e7fc50959f5ad993c78deac1bdfc29
+    - name: Publish package distributions to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
