@@ -1,3 +1,4 @@
+from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta
 from enum import StrEnum
@@ -598,7 +599,7 @@ class Key(KeyModel):
             raise ExecutionError(proc.output)
 
     @contextmanager
-    def edit(self, user: str | None = None):
+    def edit(self, user: str | None = None) -> Generator["KeyEditor", Any, Any]:
         """Create an interactive editing instance
 
         Args:
