@@ -19,7 +19,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment:
-        name: publish
+        name: publishing
         url: https://pypi.org/p/GPyG
     permissions:
       id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
