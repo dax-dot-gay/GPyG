@@ -1,9 +1,32 @@
+from typing import Literal
 from pydantic import BaseModel, Field, computed_field
 from .infolines import *
 from datetime import datetime
 
 
 class KeyModel(BaseModel):
+    """The base KeyModel, containing all relevant information about a key.
+
+    Attributes:
+        is_subkey (bool): Whether the key is a subkey
+        type (public | secret): What kind of key this is
+        validity (FieldValidity): The validity status of the key
+        length (int): The key's length
+        algorithm (int): The ID of the algorithm used to generate the key
+        key_id (str): The key's ID
+        creation_date (datetime | None): When the key was created
+        expiration_date (datetime | None): When the key will expire
+        owner_trust (str | None): The trust value of the key owner
+        capabilities (list[KeyCapability]): A list of the key's capabilities
+        overall_capabilities (list[KeyCapability]): A list of the key's capabilities, including those of its subkeys.
+        curve_name (str | None): ECC curve name
+        serial_number (str | None): Key S/N
+        fingerprint (str | None): Key fingerprint
+        keygrip (str | None): Key keygrip
+        all_signatures (list[SignatureInfo]): List of all signatures (revocation & non-revocation)
+        user_ids (list[UserIDInfo]): List of this key's user IDs
+    """
+
     is_subkey: bool = False
     type: Literal["public", "secret"]
     validity: FieldValidity
@@ -24,17 +47,35 @@ class KeyModel(BaseModel):
     internal_subkeys: list["KeyModel"] = Field(exclude=True, default_factory=list)
 
     @computed_field
+    @property
     def subkeys(self) -> list["KeyModel"] | None:
+        """A list of all subkeys, or None if the key is a subkey.
+
+        Returns:
+            list[KeyModel] | None: List of subkeys
+        """
         if self.is_subkey:
             return None
         return self.internal_subkeys
 
     @computed_field
+    @property
     def signatures(self) -> list[SignatureInfo]:
+        """Gets all non-revocation signatures attached to this key
+
+        Returns:
+            list[SignatureInfo]: List of signatures
+        """
         return [i for i in self.all_signatures if not i.is_revocation]
 
     @computed_field
+    @property
     def revocation_signatures(self) -> list[SignatureInfo]:
+        """Gets all revocation signatures attached to this key
+
+        Returns:
+            list[SignatureInfo]: List of revocation signatures
+        """
         return [i for i in self.all_signatures if i.is_revocation]
 
     @staticmethod

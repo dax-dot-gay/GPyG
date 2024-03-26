@@ -5,6 +5,7 @@ from tempfile import TemporaryFile
 from .util import *
 from .models import *
 from .operators import *
+from typing import Any
 
 class GPG:
     """Main GPyG class, provides a context within which to perform all operations.

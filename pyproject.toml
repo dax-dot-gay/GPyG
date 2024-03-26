@@ -30,6 +30,7 @@ dev = [
 
 [project.urls]
 Repository = "https://github.com/iTecAI/GPyG"
+Documentation = "https://itecai.github.io/GPyG"
 
 [tool.hatch.build.targets.wheel]
 packages = ["gpyg"]
