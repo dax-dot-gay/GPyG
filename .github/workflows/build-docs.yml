@@ -1,0 +1,14 @@
+name: build
+on:
+  release:
+    types: [published]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.12.2
+      - run: pip install mkdocs pydantic typing-extensions mkdocstrings[python]
+      - run: mkdocs gh-deploy --force --clean --verbose

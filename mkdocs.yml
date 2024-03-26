@@ -4,6 +4,8 @@ theme:
   highlightjs: true
 nav:
   - Home: "index.md"
+  - Usage:
+    - Common Operations: "usage/common_operations.md"
   - API Reference:
     - GPG Instance: "api/gpg-instance.md"
     - Operators:
@@ -12,6 +14,7 @@ nav:
       - SmartCard Operations: "api/operators/cards.md"
     - Models & Types:
       - SmartCard Types: "api/models/cards.md"
+      - Key Types: "api/models/keys.md"
 
 watch:
   - gpyg
@@ -28,3 +31,5 @@ plugins:
           show_bases: true
           heading_level: 3
           members_order: source
+          show_root_heading: true
+          show_root_full_path: false
