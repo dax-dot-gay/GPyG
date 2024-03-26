@@ -1,3 +1,4 @@
+from collections.abc import Generator
 from contextlib import contextmanager
 import subprocess
 from tempfile import TemporaryFile
@@ -52,7 +53,12 @@ class GPG:
         return MessageOperator(self)
 
     @contextmanager
-    def smart_card(self):
+    def smart_card(self) -> Generator[CardOperator, Any, None]:
+        """Creates a CardOperator with an interactive session attached.
+
+        Yields:
+            CardOperator: An initialized CardOperator
+        """
         with StatusInteractive(
             self.session,
             "gpg --status-fd 1 --command-fd 0 --pinentry-mode loopback --no-tty --card-edit",

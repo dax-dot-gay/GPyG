@@ -554,3 +554,37 @@ class CardOperator(BaseOperator):
             self.interactive.writelines("Q")
             self.interactive.wait_for_status(StatusCodes.GET_LINE)
             raise ExecutionError("Failed to change reset code")
+
+    def set_usage_info(
+        self, type: Literal["sign", "decrypt", "auth"], value: bool, admin_pin: str
+    ) -> SmartCard:
+        """Sets card UIF data
+
+        Args:
+            type (sign | decrypt | auth): Which UIF flag to set
+            value (bool): What value to set it to
+            admin_pin (str): Card admin PIN
+
+        Raises:
+            ExecutionError: If operation fails
+
+        Returns:
+            SmartCard: Updated card
+        """
+        indexMap = {"sign": 1, "decrypt": 2, "auth": 3}
+        self.interactive.writelines(f"uif {indexMap[type]} {'on' if value else 'off'}")
+        line = self.interactive.wait_for_status(
+            StatusCodes.GET_LINE, StatusCodes.GET_HIDDEN
+        )[-1]
+        if line.code == StatusCodes.GET_LINE:
+            raise ExecutionError("Input is invalid.")
+
+        self.interactive.writelines(admin_pin)
+        line = self.interactive.wait_for_status(
+            StatusCodes.GET_LINE, StatusCodes.SC_OP_FAILURE
+        )[-1]
+        if line.code == StatusCodes.GET_LINE:
+            return self.active
+        else:
+            self.interactive.wait_for_status(StatusCodes.GET_LINE)
+            raise ExecutionError("Incorrect PIN")

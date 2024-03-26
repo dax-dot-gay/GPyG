@@ -13,11 +13,7 @@ with TemporaryDirectory(dir="tmp", delete=False) as tmpdir:
     with gpg.smart_card() as card:
         if card.active:
             card.reset()
-            card.change_pin("123456", "123457")
-            card.unblock_pin_as_admin("12345678", "123456")
-            card.change_admin_pin("12345678", "87654321")
-            card.change_reset_code("87654321", "87654321")
-            card.unblock_pin("87654321", "123456")
+            card.set_usage_info("decrypt", True, "12345678")
             # print(card.active.model_dump_json(indent=4))
 
     """gpg = GPG(homedir=tmpdir, kill_existing_agent=True)
