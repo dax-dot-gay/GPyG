@@ -176,13 +176,21 @@ class SmartCard(BaseModel):
 
     @computed_field
     @property
-    def language_preferences(self) -> str | None:
+    def language_preferences(self) -> list[str]:
         """Cardholder Language Preferences
 
         Returns:
-            str | None: Language pref, or None
+            list[str]: List of language preferences
         """
-        return self.field("lang")
+        value = self.field("lang")
+        if value:
+            return [
+                value[i] + value[i + 1]
+                for i in range(0, len(value), 2)
+                if len(value) > i + 1
+            ]
+        else:
+            return []
 
     @computed_field
     @property
