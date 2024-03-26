@@ -137,6 +137,5 @@ class StatusInteractive(Interactive):
         for line in self.readlines():
             if line:
                 lines.append(line)
-                print(line)
                 if line.is_status and (len(code) == 0 or line.code in code):
                     return lines

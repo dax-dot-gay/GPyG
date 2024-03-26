@@ -12,9 +12,12 @@ with TemporaryDirectory(dir="tmp", delete=False) as tmpdir:
     gpg = GPG(homedir=tmpdir, kill_existing_agent=True)
     with gpg.smart_card() as card:
         if card.active:
-            print(card.active.model_dump_json(indent=4))
-
             card.reset()
+            card.set_key_url(
+                "https://gnupg.org/signature_key.asc", admin_pin="12345678"
+            )
+            print(card.get_key_from_url())
+            # print(card.active.model_dump_json(indent=4))
 
     """gpg = GPG(homedir=tmpdir, kill_existing_agent=True)
     key = gpg.keys.generate_key("Bongus", passphrase="test")

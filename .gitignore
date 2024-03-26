@@ -160,3 +160,4 @@ cython_debug/
 #.idea/
 tmp
 gpghome
+card-edit-help.txt

@@ -53,11 +53,11 @@ class GPG:
 
     @contextmanager
     def smart_card(self):
-        with TemporaryFile() as passfile:
-            with StatusInteractive(
-                self.session,
-                f"gpg --status-fd 1 --command-fd 0 --pinentry-mode loopback --passphrase-fd {passfile.fileno()} --card-edit",
-            ) as interactive:
-                interactive.writelines("admin")
-                interactive.wait_for_status(StatusCodes.GET_LINE)
-                yield CardOperator(self, interactive)
+        with StatusInteractive(
+            self.session,
+            "gpg --status-fd 1 --command-fd 0 --pinentry-mode loopback --no-tty --card-edit",
+        ) as interactive:
+            interactive.wait_for_status(StatusCodes.GET_LINE)
+            interactive.writelines("admin")
+
+            yield CardOperator(self, interactive)
