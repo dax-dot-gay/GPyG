@@ -13,12 +13,12 @@ with TemporaryDirectory(dir="tmp", delete=False) as tmpdir:
     with gpg.smart_card() as card:
         if card.active:
             card.reset()
-            card.generate_key(
-                "Dax Harris",
-                email="dharr@lle.rochester.edu",
-                comment="Test Comment",
-            )
-            print(card.active.model_dump_json(indent=4))
+            card.change_pin("123456", "123457")
+            card.unblock_pin_as_admin("12345678", "123456")
+            card.change_admin_pin("12345678", "87654321")
+            card.change_reset_code("87654321", "87654321")
+            card.unblock_pin("87654321", "123456")
+            # print(card.active.model_dump_json(indent=4))
 
     """gpg = GPG(homedir=tmpdir, kill_existing_agent=True)
     key = gpg.keys.generate_key("Bongus", passphrase="test")

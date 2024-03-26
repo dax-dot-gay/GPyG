@@ -392,3 +392,165 @@ class CardOperator(BaseOperator):
 
                 elif cmd == StatusCodes.KEY_CREATED:
                     success = True
+
+    def change_pin(self, current_pin: str, new_pin: str) -> SmartCard:
+        """Change the user PIN of the key
+
+        Args:
+            current_pin (str): Current user PIN
+            new_pin (str): New user PIN
+
+        Raises:
+            ExecutionError: If operation fails
+
+        Returns:
+            SmartCard: Updated card
+        """
+        self.interactive.writelines("passwd")
+        line = self.interactive.wait_for_status(StatusCodes.GET_LINE)[-1]
+        if line.arguments[0] == "cardutil.change_pin.menu":
+            self.interactive.writelines("1", current_pin, new_pin, new_pin)
+        else:
+            raise ExecutionError("Failed to change PIN")
+
+        line = self.interactive.wait_for_status(
+            StatusCodes.SC_OP_SUCCESS, StatusCodes.SC_OP_FAILURE
+        )[-1]
+        self.interactive.wait_for_status(StatusCodes.GET_LINE)
+        if line.code == StatusCodes.SC_OP_SUCCESS:
+            self.interactive.writelines("Q")
+            self.interactive.wait_for_status(StatusCodes.GET_LINE)
+            return self.active
+        else:
+            self.interactive.writelines("Q")
+            self.interactive.wait_for_status(StatusCodes.GET_LINE)
+            raise ExecutionError("Failed to change PIN")
+
+    def unblock_pin_as_admin(self, admin_pin: str, new_pin: str) -> SmartCard:
+        """Unblock a user PIN with the admin PIN
+
+        Args:
+            admin_pin (str): Admin PIN
+            new_pin (str): New user PIN
+
+        Raises:
+            ExecutionError: If operation fails
+
+        Returns:
+            SmartCard: Updated card
+        """
+        self.interactive.writelines("passwd")
+        line = self.interactive.wait_for_status(StatusCodes.GET_LINE)[-1]
+        if line.arguments[0] == "cardutil.change_pin.menu":
+            self.interactive.writelines("2", admin_pin, new_pin, new_pin)
+        else:
+            raise ExecutionError("Failed to unblock PIN")
+
+        line = self.interactive.wait_for_status(
+            StatusCodes.SC_OP_SUCCESS, StatusCodes.SC_OP_FAILURE
+        )[-1]
+        self.interactive.wait_for_status(StatusCodes.GET_LINE)
+        if line.code == StatusCodes.SC_OP_SUCCESS:
+            self.interactive.writelines("Q")
+            self.interactive.wait_for_status(StatusCodes.GET_LINE)
+            return self.active
+        else:
+            self.interactive.writelines("Q")
+            self.interactive.wait_for_status(StatusCodes.GET_LINE)
+            raise ExecutionError("Failed to unblock PIN")
+
+    def unblock_pin(self, reset_code: str, new_pin: str) -> SmartCard:
+        """Unblock the user PIN with a reset code.
+
+        Args:
+            reset_code (str): Reset code
+            new_pin (str): New user PIN
+
+        Raises:
+            ExecutionError: If operation fails
+
+        Returns:
+            SmartCard: Updated card
+        """
+        self.interactive.writelines("unblock")
+        line = self.interactive.wait_for_status(
+            StatusCodes.GET_LINE, StatusCodes.GET_HIDDEN
+        )[-1]
+        if line.code == StatusCodes.GET_LINE:
+            raise ExecutionError("Reset code is unavailable or otherwise inaccessible.")
+
+        self.interactive.writelines(reset_code, new_pin, new_pin)
+        line = self.interactive.wait_for_status(
+            StatusCodes.SC_OP_SUCCESS, StatusCodes.SC_OP_FAILURE
+        )[-1]
+        self.interactive.wait_for_status(StatusCodes.GET_LINE)
+        if line.code == StatusCodes.SC_OP_SUCCESS:
+            return self.active
+        else:
+            raise ExecutionError("Failed to unblock PIN")
+
+    def change_admin_pin(self, current_pin: str, new_pin: str) -> SmartCard:
+        """Change the admin PIN
+
+        Args:
+            current_pin (str): Current admin PIN
+            new_pin (str): New admin PIN
+
+        Raises:
+            ExecutionError: If operation fails
+
+        Returns:
+            SmartCard: Updated card
+        """
+        self.interactive.writelines("passwd")
+        line = self.interactive.wait_for_status(StatusCodes.GET_LINE)[-1]
+        if line.arguments[0] == "cardutil.change_pin.menu":
+            self.interactive.writelines("3", current_pin, new_pin, new_pin)
+        else:
+            raise ExecutionError("Failed to change Admin PIN")
+
+        line = self.interactive.wait_for_status(
+            StatusCodes.SC_OP_SUCCESS, StatusCodes.SC_OP_FAILURE
+        )[-1]
+        self.interactive.wait_for_status(StatusCodes.GET_LINE)
+        if line.code == StatusCodes.SC_OP_SUCCESS:
+            self.interactive.writelines("Q")
+            self.interactive.wait_for_status(StatusCodes.GET_LINE)
+            return self.active
+        else:
+            self.interactive.writelines("Q")
+            self.interactive.wait_for_status(StatusCodes.GET_LINE)
+            raise ExecutionError("Failed to change Admin PIN")
+
+    def change_reset_code(self, admin_pin: str, reset_code: str) -> SmartCard:
+        """Changes the card's reset code
+
+        Args:
+            admin_pin (str): Admin PIN
+            reset_code (str): New reset code
+
+        Raises:
+            ExecutionError: If operation fails
+
+        Returns:
+            SmartCard: Updated card
+        """
+        self.interactive.writelines("passwd")
+        line = self.interactive.wait_for_status(StatusCodes.GET_LINE)[-1]
+        if line.arguments[0] == "cardutil.change_pin.menu":
+            self.interactive.writelines("4", admin_pin, reset_code, reset_code)
+        else:
+            raise ExecutionError("Failed to change reset code")
+
+        line = self.interactive.wait_for_status(
+            StatusCodes.SC_OP_SUCCESS, StatusCodes.SC_OP_FAILURE
+        )[-1]
+        self.interactive.wait_for_status(StatusCodes.GET_LINE)
+        if line.code == StatusCodes.SC_OP_SUCCESS:
+            self.interactive.writelines("Q")
+            self.interactive.wait_for_status(StatusCodes.GET_LINE)
+            return self.active
+        else:
+            self.interactive.writelines("Q")
+            self.interactive.wait_for_status(StatusCodes.GET_LINE)
+            raise ExecutionError("Failed to change reset code")
