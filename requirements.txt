@@ -1,0 +1,4 @@
+typing-extensions
+pydantic
+mkdocs
+mkdocstrings[python]
