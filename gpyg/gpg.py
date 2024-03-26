@@ -1,4 +1,6 @@
+from contextlib import contextmanager
 import subprocess
+from tempfile import TemporaryFile
 from .util import *
 from .models import *
 from .operators import *
@@ -49,11 +51,13 @@ class GPG:
         """
         return MessageOperator(self)
 
-    @property
-    def cards(self) -> CardOperator:
-        """Creates a CardOperator for this instance
-
-        Returns:
-            CardOperator: The CardOperator
-        """
-        return CardOperator(self)
+    @contextmanager
+    def smart_card(self):
+        with TemporaryFile() as passfile:
+            with StatusInteractive(
+                self.session,
+                f"gpg --status-fd 1 --command-fd 0 --pinentry-mode loopback --passphrase-fd {passfile.fileno()} --card-edit",
+            ) as interactive:
+                interactive.writelines("admin")
+                interactive.wait_for_status(StatusCodes.GET_LINE)
+                yield CardOperator(self, interactive)

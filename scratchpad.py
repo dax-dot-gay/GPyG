@@ -10,7 +10,11 @@ if os.path.exists("./tmp"):
 os.makedirs("./tmp", exist_ok=True)
 with TemporaryDirectory(dir="tmp", delete=False) as tmpdir:
     gpg = GPG(homedir=tmpdir, kill_existing_agent=True)
-    print(gpg.cards.active.model_dump_json(indent=4))
+    with gpg.smart_card() as card:
+        if card.active:
+            print(card.active.model_dump_json(indent=4))
+
+            card.reset()
 
     """gpg = GPG(homedir=tmpdir, kill_existing_agent=True)
     key = gpg.keys.generate_key("Bongus", passphrase="test")

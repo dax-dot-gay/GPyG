@@ -318,6 +318,8 @@ class SmartCard(BaseModel):
 
         results: list[KeyData] = []
         for fpr, ftime, grp in zip_longest(fprs, fprtimes, grps):
+            if len(fpr) == 0:
+                continue
             try:
                 created = datetime.fromtimestamp(float(ftime)) if ftime else None
             except:

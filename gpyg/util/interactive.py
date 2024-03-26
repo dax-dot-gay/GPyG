@@ -131,3 +131,12 @@ class StatusInteractive(Interactive):
                     yield line
             except:
                 break
+
+    def wait_for_status(self, *code: str):
+        lines: list[StatusLine] = []
+        for line in self.readlines():
+            if line:
+                lines.append(line)
+                print(line)
+                if line.is_status and (len(code) == 0 or line.code in code):
+                    return lines
