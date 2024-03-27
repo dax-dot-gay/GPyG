@@ -5,7 +5,10 @@ theme:
 nav:
   - Home: "index.md"
   - Usage:
-    - Common Operations: "usage/common_operations.md"
+    - Getting Started: "usage/getting_started.md"
+    - Key Management: "usage/key_management.md"
+    - Message Management: "usage/message_management.md"
+    - Smart Card Management: "usage/card_management.md"
   - API Reference:
     - GPG Instance: "api/gpg-instance.md"
     - Operators:
@@ -15,6 +18,7 @@ nav:
     - Models & Types:
       - SmartCard Types: "api/models/cards.md"
       - Key Types: "api/models/keys.md"
+      - Other Types: "api/models/other.md"
 
 watch:
   - gpyg
