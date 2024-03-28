@@ -11,6 +11,7 @@ os.makedirs("./tmp", exist_ok=True)
 with TemporaryDirectory(dir="tmp", delete=False) as tmpdir:
     gpg = GPG(homedir=tmpdir, kill_existing_agent=True)
     with gpg.smart_card() as card:
+        print(card.active)
         if card.active:
             card.reset()
             card.set_usage_info("decrypt", True, "12345678")

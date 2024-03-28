@@ -1,5 +1,6 @@
 from collections.abc import Generator
 from contextlib import contextmanager
+import os
 import subprocess
 from tempfile import TemporaryFile
 from .util import *
@@ -13,11 +14,22 @@ class GPG:
     Args:
         homedir (str | None, optional): Homedir, or the system's default if None. Defaults to None.
         kill_existing_agent (bool, optional): Whether to attempt to kill running GPG agents. Defaults to False.
+        write_configs (bool, optional): Whether to write some best-practice configs to the specified homedir (only if a homedir is specified). Defaults to True.
     """
-    def __init__(self, homedir: str | None = None, kill_existing_agent: bool = False) -> None:
+
+    def __init__(
+        self,
+        homedir: str | None = None,
+        kill_existing_agent: bool = False,
+        write_configs: bool = True,
+    ) -> None:
 
         if kill_existing_agent:
             subprocess.run(["gpgconf", "--kill", "gpg-agent"])
+
+        if write_configs and homedir:
+            with open(os.path.join(homedir, "scdaemon.conf"), "w") as scdc:
+                scdc.write("disable-ccid")
         self.homedir = homedir
         self.session = ProcessSession(environment={"GNUPGHOME": homedir} if homedir else None).activate()
         self._config = None
@@ -68,3 +80,4 @@ class GPG:
             interactive.writelines("admin")
 
             yield CardOperator(self, interactive)
+            interactive.writelines("quit")
