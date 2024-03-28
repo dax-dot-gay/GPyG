@@ -74,6 +74,7 @@ class Interactive:
         self.code = self.process.poll()
         self.output_handle.close()
         self.output_file.close()
+        del self.process
 
     def seek(self, position: int = 0):
         self.output_handle.seek(position)
