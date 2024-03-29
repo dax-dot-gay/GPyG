@@ -2,6 +2,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta
 from enum import StrEnum
+from tempfile import NamedTemporaryFile
 from typing import Any, Literal
 
 from pydantic import Field, PrivateAttr, computed_field
@@ -614,6 +615,107 @@ class Key(KeyModel):
         ) as interactive:
             editor = KeyEditor(self, user if user else self.fingerprint, interactive)
             yield editor
+
+    def generate_revocation(
+        self,
+        passphrase: str | None = None,
+        reason: KeyRevocationReason = KeyRevocationReason.KEY_COMPROMISED,
+        description: str = "",
+    ) -> str:
+        """Generate a revocation certificate for the specified key.
+
+        Args:
+            passphrase (str | None, optional): The key's passphrase. Defaults to None.
+            reason (KeyRevocationReason, optional): A revocation reason, if desired. Defaults to KeyRevocationReason.KEY_COMPROMISED.
+            description (str, optional): A revocation description, if required. Defaults to "".
+
+        Raises:
+            ValueError: If the specified password is invalid
+            ExecutionError: If another error occurs
+
+        Returns:
+            str: The ASCII-armored representation of the revocation certificate.
+        """
+        with StatusInteractive(
+            self.session,
+            f"gpg --status-fd 1 --pinentry-mode loopback --command-fd 0 --no-tty --gen-revoke {self.fingerprint}",
+        ) as inter:
+            result = []
+            reading_result = False
+
+            for line in inter.readlines():
+                if line:
+                    if "make_keysig_packet failed" in line.content:
+                        raise ValueError("Bad password.")
+                    if "-BEGIN PGP PUBLIC KEY BLOCK-" in line.content:
+                        reading_result = True
+                        result.append(line.content)
+
+                    elif "-END PGP PUBLIC KEY BLOCK-" in line.content:
+                        reading_result = False
+                        result.append(line.content)
+                        break
+
+                    elif reading_result:
+                        result.append(line.content)
+                    elif line.is_status:
+                        if (
+                            line.code == StatusCodes.GET_BOOL
+                            and line.arguments[0] == "gen_revoke.okay"
+                        ):
+                            inter.writelines("y")
+
+                        if (
+                            line.code == StatusCodes.GET_LINE
+                            and line.arguments[0] == "ask_revocation_reason.code"
+                        ):
+                            inter.writelines(str(reason))
+
+                        if (
+                            line.code == StatusCodes.GET_LINE
+                            and line.arguments[0] == "ask_revocation_reason.text"
+                        ):
+                            inter.writelines(description)
+
+                        if (
+                            line.code == StatusCodes.GET_BOOL
+                            and line.arguments[0] == "ask_revocation_reason.okay"
+                        ):
+                            inter.writelines("y")
+
+                        if (
+                            line.code == StatusCodes.GET_HIDDEN
+                            and line.arguments[0] == "passphrase.enter"
+                        ):
+                            inter.writelines(passphrase if passphrase else "")
+                elif inter.code:
+                    inter.seek()
+                    raise ExecutionError("Failed to execute:\n" + inter.read().decode())
+
+        return "\n".join(result)
+
+    def revoke(
+        self,
+        passphrase: str | None = None,
+        reason: KeyRevocationReason = KeyRevocationReason.KEY_COMPROMISED,
+        description: str = "",
+    ):
+        """Convenience function to generate a revocation certificate and automatically apply it.
+
+        Args:
+            passphrase (str | None, optional): Key passphrase. Defaults to None.
+            reason (KeyRevocationReason, optional): Revocation reason, if required. Defaults to KeyRevocationReason.KEY_COMPROMISED.
+            description (str, optional): Revocation description, if required. Defaults to "".
+        """
+        cert = self.generate_revocation(
+            passphrase=passphrase, reason=reason, description=description
+        )
+        with NamedTemporaryFile() as revocfile:
+            revocfile.write(cert.encode())
+            revocfile.seek(0)
+            self.operator.import_key(revocfile.name)
+
+        self.reload()
 
 
 class KeyEditor:
