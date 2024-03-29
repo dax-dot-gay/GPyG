@@ -66,16 +66,19 @@ class KeyCapability(StrEnum):
 
 
 class StaleTrustReason(StrEnum):
+    """Values from https://github.com/gpg/gnupg/blob/master/doc/DETAILS"""
     OLD = "o"
     DIFFERENT_MODEL = "t"
 
 
 class TrustModel(IntEnum):
+    """Values from https://github.com/gpg/gnupg/blob/master/doc/DETAILS"""
     CLASSIC = 0
     PGP = 1
 
 
 class InfoLine(BaseModel):
+    """Generic representation of a colon-separated information line (see https://github.com/gpg/gnupg/blob/master/doc/DETAILS)"""
     record_type: InfoRecord
     field_array: list[str | None]
 

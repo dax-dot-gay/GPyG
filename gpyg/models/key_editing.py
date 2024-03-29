@@ -2,6 +2,7 @@ from enum import StrEnum
 
 
 class StatusCodes(StrEnum):
+    """Values from https://github.com/gpg/gnupg/blob/master/doc/DETAILS"""
     NEWSIG = "NEWSIG"
     GOODSIG = "GOODSIG"
     EXPSIG = "EXPSIG"
@@ -103,6 +104,7 @@ class StatusCodes(StrEnum):
 
 
 class SigningModes(StrEnum):
+    """Values from `gpg --edit-key`"""
     EXPORTABLE = "sign"
     NON_EXPORTABLE = "lsign"
     NON_REVOCABLE = "nrsign"
@@ -110,11 +112,13 @@ class SigningModes(StrEnum):
 
 
 class RevocationReason(StrEnum):
+    """Values from `gpg --edit-key`"""
     NO_REASON = "0"
     USER_ID_INVALID = "4"
 
 
 class KeyRevocationReason(StrEnum):
+    """Values from `gpg --edit-key`"""
     NO_REASON = "0"
     KEY_COMPROMISED = "1"
     KEY_SUPERSEDED = "2"
@@ -122,6 +126,7 @@ class KeyRevocationReason(StrEnum):
 
 
 class KeyTrust(StrEnum):
+    """Values from `gpg --edit-key`"""
     UNKNOWN = "1"
     UNTRUSTED = "2"
     MARGINAL_TRUST = "3"
