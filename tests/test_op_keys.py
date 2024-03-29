@@ -134,3 +134,12 @@ def test_import_key(environment):
     assert len(environment.keys.list_keys()) == 3
     environment.keys.import_key(os.path.join(environment.homedir, "export.asc"))
     assert len(environment.keys.list_keys()) == 4
+
+
+def test_key_revocation(environment):
+    keys = environment.keys.list_keys()
+    assert len(keys) == 4
+    assert keys[0].validity == FieldValidity.ULTIMATELY_VALID
+    keys[0].revoke(passphrase="test-psk-0")
+    keys = environment.keys.list_keys()
+    assert keys[0].validity == FieldValidity.REVOKED
