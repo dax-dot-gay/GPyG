@@ -2,6 +2,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta
 from enum import StrEnum
+import shlex
 from tempfile import NamedTemporaryFile
 from typing import Any, Literal
 
@@ -68,16 +69,15 @@ class KeyOperator(BaseOperator):
         else:
             expire_str = "none"
 
-        command = "gpg {force} --batch --pinentry-mode loopback --passphrase {passphrase} --quick-gen-key '{uid}' {algo} {usage} {expire}".format(
+        command = "gpg {force} --batch --pinentry-mode loopback --passphrase-fd 0 --quick-gen-key {uid} {algo} {usage} {expire}".format(
             force="--yes" if force else "",
-            passphrase="'" + passphrase + "'" if passphrase else "''",
-            uid=uid,
-            algo=algorithm if algorithm else "default",
-            usage=",".join(usage) if usage else "default",
-            expire=expire_str,
+            uid=shlex.quote(uid),
+            algo=shlex.quote(algorithm if algorithm else "default"),
+            usage=shlex.quote(",".join(usage)) if usage else "default",
+            expire=shlex.quote(expire_str),
         )
-        proc = self.session.spawn(command)
-        proc.wait()
+        print(command)
+        proc = self.session.run(command, input=passphrase if passphrase else "")
         if "certificate stored" in proc.output.strip().split("\n")[-1]:
             return self.list_keys(
                 pattern=proc.output.strip().split("\n")[-1].split("/")[-1].split(".")[0]
@@ -111,8 +111,8 @@ class KeyOperator(BaseOperator):
                 "--with-subkey-fingerprint",
                 "--with-keygrip",
                 "--with-sig-check" if check_sigs else "--with-sig-list",
-                f"--list-{key_type}-keys",
-                pattern,
+                f"--list-{"public" if key_type == "public" else "secret"}-keys",
+                shlex.quote(pattern) if pattern else None,
             ]
             if i != None
         ]
@@ -151,7 +151,8 @@ class KeyOperator(BaseOperator):
             ExecutionError: If operation fails
         """
         for file in keyfiles:
-            result = self.session.run(f"gpg --batch --yes --import {file}")
+            result = self.session.run(f"gpg --batch --yes --import {shlex.quote(file)
+                                      }")
             if result.code != 0:
                 raise ExecutionError(
                     f"Failed to import {file} with code {result.code}:\n{result.output}"
@@ -381,8 +382,8 @@ class Key(KeyModel):
             current=self.fingerprint,
             force="--force-sign-key" if force else "",
             local="" if exportable else "l",
-            fingerprint=parsed_target,
-            names=" ".join(['"' + name + '"' for name in users]) if users else "",
+            fingerprint=shlex.quote(parsed_target),
+            names=" ".join([shlex.quote(name) for name in users]) if users else "",
         )
         proc = self.session.run(cmd, input=password + "\n" if password else None)
         if proc.code == 0:
@@ -428,9 +429,9 @@ class Key(KeyModel):
             expire_str = "none"
         cmd = "gpg --batch --pinentry-mode loopback --passphrase-fd 0 --yes --quick-add-key {fingerprint} {algo} {usage} {expiration}".format(
             fingerprint=self.fingerprint,
-            algo=algorithm if algorithm else "default",
-            usage=",".join(usage) if usage else "default",
-            expiration=expire_str,
+            algo=shlex.quote(algorithm if algorithm else "default"),
+            usage=shlex.quote(",".join(usage) if usage else "default"),
+            expiration=shlex.quote(expire_str),
         )
 
         proc = self.session.run(
@@ -490,7 +491,7 @@ class Key(KeyModel):
                 ]
             )
 
-        cmd = f"gpg --batch --pinentry-mode loopback --passphrase-fd 0 --quick-add-uid {self.fingerprint} '{parsed}'"
+        cmd = f"gpg --batch --pinentry-mode loopback --passphrase-fd 0 --quick-add-uid {self.fingerprint} {shlex.quote(parsed)}"
         proc = self.session.run(
             cmd,
             input=passphrase + "\n" if passphrase else None,
@@ -513,7 +514,7 @@ class Key(KeyModel):
         Returns:
             Key: Reference to updated key
         """
-        cmd = f"gpg --batch --pinentry-mode loopback --passphrase-fd 0 --quick-revoke-uid {self.fingerprint} '{uid}'"
+        cmd = f"gpg --batch --pinentry-mode loopback --passphrase-fd 0 --quick-revoke-uid {self.fingerprint} {shlex.quote(uid)}"
         proc = self.session.run(
             cmd,
             input=passphrase + "\n" if passphrase else None,
@@ -562,8 +563,8 @@ class Key(KeyModel):
         """
         cmd = "gpg --batch --pinentry-mode loopback --passphrase-fd 0 --quick-revoke-sig {fingerprint} {signer} {names}".format(
             fingerprint=self.fingerprint,
-            signer=signer.fingerprint if isinstance(signer, Key) else signer,
-            names=" ".join(users) if users else "",
+            signer=shlex.quote(signer.fingerprint if isinstance(signer, Key) else signer),
+            names=shlex.quote(" ".join(users) if users else ""),
         ).strip()
         proc = self.session.run(
             cmd,
@@ -587,8 +588,8 @@ class Key(KeyModel):
         Returns:
             Key: An updated reference to the Key
         """
-        cmd = "gpg --batch --pinentry-mode loopback --passphrase-fd 0 --quick-set-primary-uid '{fingerprint}' '{uid}'".format(
-            fingerprint=self.fingerprint, uid=uid
+        cmd = "gpg --batch --pinentry-mode loopback --passphrase-fd 0 --quick-set-primary-uid {fingerprint} {uid}".format(
+            fingerprint=self.fingerprint, uid=shlex.quote(uid)
         ).strip()
         proc = self.session.run(
             cmd,
