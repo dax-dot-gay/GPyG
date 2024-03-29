@@ -1,3 +1,4 @@
+import shlex
 from tempfile import NamedTemporaryFile
 from typing import Literal
 from .common import BaseOperator
@@ -29,7 +30,10 @@ class MessageOperator(BaseOperator):
         if len(recipients) == 0:
             raise ValueError("Must specify at least one recipient")
         parsed_recipients = " ".join(
-            [f"-r {r.key_id if isinstance(r, Key) else r}" for r in recipients]
+            [
+                f"-r {shlex.quote(r.key_id if isinstance(r, Key) else r)}"
+                for r in recipients
+            ]
         )
         cmd = (
             "gpg {compress} --batch --encrypt {recipients} {armored} --output -".format(
@@ -95,7 +99,7 @@ class MessageOperator(BaseOperator):
             datafile.write(data)
             datafile.seek(0)
             result = self.session.run(
-                f"gpg {'--armor' if format == 'ascii' else ''} --cipher-algo {algo} --output - --passphrase-fd 0 --pinentry-mode loopback --symmetric {datafile.name}",
+                f"gpg {'--armor' if format == 'ascii' else ''} --cipher-algo {shlex.quote(algo)} --output - --passphrase-fd 0 --pinentry-mode loopback --symmetric {datafile.name}",
                 decode=False,
                 input=passphrase,
             )

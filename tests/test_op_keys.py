@@ -1,3 +1,4 @@
+from datetime import timedelta
 import os
 from gpyg import *
 
@@ -49,8 +50,10 @@ def test_export(environment):
 
 def test_expire_key(environment):
     result = environment.keys.list_keys()[0]
-    result.set_expiration(expiration=datetime.date(2026, 1, 1), password="test-psk-0")
-    assert result.expiration_date.date() == datetime.date(2026, 1, 1)
+    result.set_expiration(
+        expiration=datetime.date.today() + timedelta(days=365), password="test-psk-0"
+    )
+    assert result.expiration_date.date() == datetime.date.today() + timedelta(days=365)
 
 
 def test_key_passwords(environment):

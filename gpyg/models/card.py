@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, computed_field
 
 
 class Sex(StrEnum):
-    """Describes a SmartCard's sex marker.
+    """Describes a SmartCard's sex marker. Values from `gpg --card-edit`
 
     Members:
         - `UNSET`: No sex
